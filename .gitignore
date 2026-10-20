@@ -1,0 +1,19 @@
+# Local build output and IDE state
+/build/
+/cmake-build-*/
+/.vs/
+/.dist/
+*.user
+*.suo
+
+# Downloaded installers and source media
+/_downloads/
+/image-build/downloads/
+
+# Bundled QEMU binaries and generated virtual disks
+/vm/qemu/
+/vm/images/*.qcow2
+/instances/*/overlay.qcow2
+
+# Runtime logs
+*.log

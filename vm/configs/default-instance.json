@@ -1,0 +1,20 @@
+{
+  "name": "default",
+  "cpuCores": 1,
+  "ramMB": 4096,
+  "display": {
+    "width": 1080,
+    "height": 1920,
+    "dpi": 240
+  },
+  "qemuPath": "vm/qemu/qemu-system-x86_64.exe",
+  "baseImage": "vm/images/bliss-base.qcow2",
+  "overlayImage": "instances/default/overlay.qcow2",
+  "qmpPort": 4444,
+  "adbHostPort": 5555,
+  "camera": {
+    "mode": "none",
+    "vendorId": "",
+    "productId": ""
+  }
+}
