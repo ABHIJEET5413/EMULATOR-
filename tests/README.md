@@ -39,6 +39,7 @@ cmake --build build --config Release --target test_vm_control
 - Tests are standalone console executables, not a test framework
 - Each test prints `[PASS]` or `[FAIL]` with details
 - VM-dependent tests require QEMU and a disk image
+- Bliss OS 14 requires a Windows QEMU build with `virtio-vga-gl` and SDL OpenGL support; the controller enables these so Android can pass the text boot splash
 - Phase 1 snapshots preserve qcow2 disk contents only; save and restore require a stopped VM, and RAM/device state is not captured
 - Graceful stop requests guest ACPI shutdown first, then asks QEMU to exit if the guest does not respond; force termination is the last fallback
 - Non-VM tests (keymap parsing, config loading) run anywhere

@@ -28,7 +28,7 @@
               │   -device usb-tablet       │
               │   -netdev user,hostfwd     │
               │   -qmp tcp:localhost:4444   │
-              │   -display sdl / gtk       │
+              │   virtio-vga-gl + SDL/OpenGL│
               ├────────────────────────────┤
               │    Bliss OS (Android-x86)  │
               │    qcow2 overlay on base   │
@@ -59,7 +59,9 @@ The main Windows application the user interacts with.
   launches `qemu-system-x86_64.exe` via `QProcess` with WHPX, and waits
   up to 30 seconds for the QMP handshake. It builds the Phase 1 command
   line with the configured CPU/RAM, qcow2 overlay, USB tablet, user-mode
-  NAT/ADB forward, SDL display, QMP socket, and serial console. Graceful
+  NAT/ADB forward, OpenGL virtio VGA with an SDL display, QMP socket, and
+  serial console. This graphics device lets Bliss 14 pass the text boot
+  splash on the tested Windows host. Graceful
   shutdown first requests `system_powerdown`; if the guest does not respond,
   it asks QEMU to exit through QMP `quit`, and force-terminates only if QEMU
   still does not exit. Disk-only qcow2 snapshots use the bundled

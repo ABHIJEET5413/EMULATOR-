@@ -571,7 +571,10 @@ QStringList QemuController::buildCommandLine() const
     arguments << QStringLiteral("-netdev")
               << QStringLiteral("user,id=net0,hostfwd=tcp::%1-:5555").arg(m_adbHostPort);
     arguments << QStringLiteral("-device") << QStringLiteral("virtio-net-pci,netdev=net0");
-    arguments << QStringLiteral("-display") << QStringLiteral("sdl");
+    // Bliss OS 14 needs the OpenGL-capable virtio VGA device; standard VGA stalls at its boot splash.
+    arguments << QStringLiteral("-vga") << QStringLiteral("none");
+    arguments << QStringLiteral("-device") << QStringLiteral("virtio-vga-gl");
+    arguments << QStringLiteral("-display") << QStringLiteral("sdl,gl=on");
     arguments << QStringLiteral("-qmp")
               << QStringLiteral("tcp:localhost:%1,server,wait=off").arg(m_qmpPort);
     arguments << QStringLiteral("-serial") << QStringLiteral("mon:stdio");

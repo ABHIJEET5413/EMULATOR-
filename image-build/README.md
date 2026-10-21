@@ -59,7 +59,9 @@ qemu-system-x86_64.exe `
   -device usb-tablet `
   -netdev user,id=net0 `
   -device virtio-net-pci,netdev=net0 `
-  -display sdl `
+  -vga none `
+  -device virtio-vga-gl `
+  -display sdl,gl=on `
   -boot d
 ```
 
@@ -87,7 +89,9 @@ qemu-system-x86_64.exe `
   -device usb-tablet `
   -netdev user,id=net0,hostfwd=tcp::5555-:5555 `
   -device virtio-net-pci,netdev=net0 `
-  -display sdl `
+  -vga none `
+  -device virtio-vga-gl `
+  -display sdl,gl=on `
   -qmp tcp:localhost:4444,server,wait=off `
   -boot c
 ```
@@ -159,7 +163,8 @@ qemu-system-x86_64.exe `
   -device usb-ehci -device usb-tablet `
   -netdev user,id=net0,hostfwd=tcp::5555-:5555 `
   -device virtio-net-pci,netdev=net0 `
-  -display sdl -boot c
+  -vga none -device virtio-vga-gl `
+  -display sdl,gl=on -boot c
 
 # Verify:
 # - Boots straight to home screen (no setup wizard)

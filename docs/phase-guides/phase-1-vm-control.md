@@ -182,8 +182,12 @@ QStringList QemuController::buildCommandLine(const QJsonObject& config) {
     args << "-netdev" << QString("user,id=net0,hostfwd=tcp::%1-:5555").arg(adbPort);
     args << "-device" << "virtio-net-pci,netdev=net0";
 
-    // Display — SDL for now (Phase 2 will embed or switch to VNC)
-    args << "-display" << "sdl";
+    // Bliss OS 14 needs OpenGL-capable virtio VGA on Windows.
+    args << "-vga" << "none";
+    args << "-device" << "virtio-vga-gl";
+
+    // Display — SDL/OpenGL for now (Phase 2 will embed or switch to VNC)
+    args << "-display" << "sdl,gl=on";
 
     // QMP — our control channel
     int qmpPort = config["qmpPort"].toInt(4444);
@@ -402,4 +406,5 @@ If you don't have a Bliss OS qcow2 yet, you can test with any bootable image:
 | QMP won't connect | Port conflict or QEMU crashed | Check QEMU stderr, try different port |
 | "kernel-irqchip" error | WHPX incompatibility | Try removing `kernel-irqchip=off` |
 | Very slow boot | Using TCG instead of WHPX | Verify `-accel whpx` is accepted |
-| Black screen | No bootable disk | Check overlay has a valid backing file |
+| Black screen | No bootable disk or unavailable guest graphics | Check the overlay backing file and use `-vga none -device virtio-vga-gl -display sdl,gl=on` |
+| Bliss stays on its text splash | Standard VGA cannot start Bliss 14 graphics on this Windows setup | Use a QEMU build with OpenGL support and the virtio VGA arguments above |

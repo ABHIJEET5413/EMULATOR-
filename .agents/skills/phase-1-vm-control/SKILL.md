@@ -103,7 +103,9 @@ qemu-system-x86_64.exe
   -device usb-tablet
   -netdev user,id=net0,hostfwd=tcp::5555-:5555
   -device virtio-net-pci,netdev=net0
-  -display sdl
+  -vga none
+  -device virtio-vga-gl
+  -display sdl,gl=on
   -qmp tcp:localhost:4444,server,wait=off
   -serial mon:stdio
   -boot c
@@ -172,7 +174,7 @@ powershell -ExecutionPolicy Bypass -File vm/scripts/check-whpx.ps1
 After building, the user should verify:
 
 - [ ] `check-whpx.ps1` reports virtualization status correctly
-- [ ] QEMU launches and a window appears showing BIOS/boot
+- [ ] QEMU launches, shows Bliss's graphical boot animation, and reaches Android UI
 - [ ] QMP connects (test harness prints "QMP connected")
 - [ ] `query-status` returns valid JSON
 - [ ] Pause command works (QEMU window freezes)
