@@ -3,6 +3,7 @@
 #include <QImage>
 #include <QEventLoop>
 #include <QFile>
+#include <QLockFile>
 #include <QStringList>
 #include <QTemporaryDir>
 #include <QTextStream>
@@ -86,10 +87,14 @@ int runFakeAdb(const int argc, char* argv[])
 
     const QByteArray logPath = qgetenv("DROIDBOX_FAKE_ADB_LOG");
     if (!logPath.isEmpty()) {
-        QFile log(QString::fromLocal8Bit(logPath));
+        const QString path = QString::fromLocal8Bit(logPath);
+        // Concurrent fake processes must not overwrite each other's log records.
+        QLockFile lock(path + ".lock");
+        if (!lock.tryLock(5000)) return 1;
+        QFile log(path);
         if (log.open(QIODevice::WriteOnly | QIODevice::Append)) {
-            log.write(arguments.join(QLatin1Char('|')).toUtf8());
-            log.write("\n");
+            log.write(arguments.join(QLatin1Char('|')).toUtf8() + '\n');
+            log.close();
         }
     }
 

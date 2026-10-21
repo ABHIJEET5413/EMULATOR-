@@ -34,6 +34,8 @@ public:
 
     /** Force-terminate the QEMU process. */
     void kill();
+    /** Wait for process exit during window destruction, before releasing its disk lock. */
+    bool waitForExit(int timeoutMs = 5000);
 
     /** Send QMP stop (pause), cont (resume), or query-status. */
     QString pause();
@@ -130,6 +132,8 @@ private:
     int m_ramMb{0};
     int m_qmpPort{4444};
     int m_adbHostPort{5555};
+    int m_displayWidth{1080}, m_displayHeight{1920};
+    QString m_cameraMode, m_cameraVendor, m_cameraProduct;
     int m_operationTimeoutMs{30000};
     quint64 m_nextSnapshotOperationId{1};
     bool m_starting{false};

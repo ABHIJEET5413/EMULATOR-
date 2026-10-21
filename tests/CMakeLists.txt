@@ -68,3 +68,10 @@ set_tests_properties(adb PROPERTIES
 # Explicit opt-in only: this harness installs an APK into a running Android guest.
 add_executable(test_adb_live test_adb_live.cpp)
 target_link_libraries(test_adb_live PRIVATE droidbox_core Qt6::Core)
+
+add_executable(test_instance_manager test_instance_manager.cpp)
+target_link_libraries(test_instance_manager PRIVATE droidbox_core)
+add_test(NAME instance_manager COMMAND test_instance_manager)
+set_tests_properties(instance_manager PROPERTIES
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
+)

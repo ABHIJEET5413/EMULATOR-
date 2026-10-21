@@ -185,6 +185,11 @@ void QemuController::kill()
     m_process.kill();
 }
 
+bool QemuController::waitForExit(int timeoutMs)
+{
+    return !isRunning() || m_process.waitForFinished(timeoutMs);
+}
+
 QString QemuController::pause()
 {
     return sendCommand(QStringLiteral("stop"));
@@ -535,7 +540,26 @@ bool QemuController::readConfiguration(const QString& configPath)
     m_cpuCores = config.value(QStringLiteral("cpuCores")).toInt(-1);
     m_ramMb = config.value(QStringLiteral("ramMB")).toInt(-1);
     m_qmpPort = config.value(QStringLiteral("qmpPort")).toInt(4444);
-    m_adbHostPort = config.value(QStringLiteral("adbHostPort")).toInt(5555);
+    m_adbHostPort = config.value("network").toObject().value("adbHostPort").toInt(
+        config.value(QStringLiteral("adbHostPort")).toInt(5555));
+    const auto display = config.value("display").toObject();
+    m_displayWidth = display.value("width").toInt(1080);
+    m_displayHeight = display.value("height").toInt(1920);
+    const auto camera = config.value("camera").toObject();
+    m_cameraMode = camera.value("mode").toString("none");
+    m_cameraVendor = camera.value("vendorId").toString();
+    m_cameraProduct = camera.value("productId").toString();
+    if (m_displayWidth < 320 || m_displayWidth > 4096 || m_displayHeight < 320 || m_displayHeight > 4096) {
+        reportError("Display width and height must be between 320 and 4096 pixels."); return false;
+    }
+    const auto validUsbId = [](const QString& id) {
+        if (id.size() != 6 || !id.startsWith("0x")) return false;
+        bool ok = false; id.mid(2).toUInt(&ok, 16); return ok;
+    };
+    if ((m_cameraMode != "none" && m_cameraMode != "webcam")
+        || (m_cameraMode == "webcam" && (!validUsbId(m_cameraVendor) || !validUsbId(m_cameraProduct)))) {
+        reportError("Camera mode must be None or USB webcam with valid 0xNNNN vendor/product IDs. Test pattern is unavailable."); return false;
+    }
     const QString configDirectory = QFileInfo(resolvedConfigPath).absolutePath();
 
     const QString configuredQemuPath = m_qemuPathOverride.isEmpty()
@@ -598,7 +622,7 @@ QStringList QemuController::buildCommandLine() const
     arguments << QStringLiteral("-cpu") << QStringLiteral("max");
     arguments << QStringLiteral("-drive")
               << QStringLiteral("file=%1,format=qcow2,if=virtio")
-                     .arg(QDir::fromNativeSeparators(m_overlayImage));
+                     .arg(QDir::fromNativeSeparators(m_overlayImage).replace(",", ",,"));
     arguments << QStringLiteral("-device") << QStringLiteral("usb-ehci");
     arguments << QStringLiteral("-device") << QStringLiteral("usb-tablet");
     arguments << QStringLiteral("-netdev")
@@ -606,7 +630,9 @@ QStringList QemuController::buildCommandLine() const
     arguments << QStringLiteral("-device") << QStringLiteral("virtio-net-pci,netdev=net0");
     // Bliss OS 14 needs the OpenGL-capable virtio VGA device; standard VGA stalls at its boot splash.
     arguments << QStringLiteral("-vga") << QStringLiteral("none");
-    arguments << QStringLiteral("-device") << QStringLiteral("virtio-vga-gl");
+    arguments << QStringLiteral("-device") << QStringLiteral("virtio-vga-gl,xres=%1,yres=%2").arg(m_displayWidth).arg(m_displayHeight);
+    if (m_cameraMode == "webcam")
+        arguments << "-device" << QString("usb-host,vendorid=%1,productid=%2").arg(m_cameraVendor, m_cameraProduct);
     arguments << QStringLiteral("-display") << QStringLiteral("sdl,gl=on");
     arguments << QStringLiteral("-qmp")
               << QStringLiteral("tcp:localhost:%1,server,wait=off").arg(m_qmpPort);

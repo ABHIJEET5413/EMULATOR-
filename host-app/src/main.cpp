@@ -6,10 +6,13 @@
 #include <QMutex>
 #include <QMutexLocker>
 #include <QLoggingCategory>
+#include <QMessageBox>
 #include <QStandardPaths>
 #include <QTextStream>
 
 #include "main_window.h"
+#include "instance_manager.h"
+#include "instance_list_window.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -49,7 +52,10 @@ void messageHandler(const QtMsgType type,
     if (!QDir().mkpath(logDirectory)) {
         logDirectory = QCoreApplication::applicationDirPath();
     }
-    static QFile logFile(QDir(logDirectory).filePath(QStringLiteral("droidbox.log")));
+    // Independent application processes cannot safely share a persistent file
+    // offset on Windows. Keep each process's complete log in its own file.
+    static QFile logFile(QDir(logDirectory).filePath(QStringLiteral("droidbox-%1.log")
+        .arg(QCoreApplication::applicationPid())));
 
     const QString line = QStringLiteral("[%1] [%2] %3\n")
                              .arg(QDateTime::currentDateTime().toString(
@@ -92,10 +98,20 @@ int main(int argc, char* argv[])
         }
     }
 
-    MainWindow window;
-    window.show();
-    if (!apkToInstall.isEmpty()) {
-        window.queueApkInstall(apkToInstall);
+    const QString root = InstanceManager::findResourceRoot();
+    InstanceManager manager(root, InstanceManager::defaultInstancesRoot(root));
+    if (!manager.initialize()) {
+        QMessageBox::critical(nullptr, "Instance storage unavailable", manager.lastError()); return 1;
     }
+    InstanceListWindow window(&manager);
+    const auto instances = manager.listInstances();
+    const int selected = arguments.indexOf("--instance");
+    if (selected >= 0 && selected + 1 < arguments.size())
+        window.launchInstance(arguments.at(selected + 1), apkToInstall);
+    else if (!apkToInstall.isEmpty()) window.launchInstance("default", apkToInstall);
+    else if (instances.size() == 1 && !arguments.contains("--instances")) window.launchInstance(instances.first().name);
+    else window.show();
+    // A failed launch must leave an accessible launcher, never an invisible process.
+    if (application.topLevelWidgets().size() == 1) window.show();
     return application.exec();
 }

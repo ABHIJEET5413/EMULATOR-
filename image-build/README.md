@@ -238,3 +238,11 @@ vm/images/bliss-base.qcow2
 
 Instance overlays reference it with a relative path via qcow2 backing file.
 If the base image moves, overlays will break.
+
+## Phase 5 provisioned base
+
+Fresh instances use `vm/images/bliss-provisioned.qcow2`, prepared with
+`prepare-instance-base.sh`. This adds the Phase 4 ADB startup repair to a new
+image without changing `bliss-base.qcow2` or an existing instance's backing chain.
+See [Phase 5 image preparation and tests](../docs/PHASE-5-TESTING.md).
+Never distribute a local development base that authorizes a personal ADB public key.

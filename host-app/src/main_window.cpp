@@ -18,6 +18,8 @@
 
 #include "display_embed.h"
 #include "main_window.h"
+#include "instance_manager.h"
+#include "settings_dialog.h"
 
 #include <utility>
 
@@ -53,6 +55,7 @@ MainWindow::MainWindow(QWidget* parent)
     connect(&m_qemuController, &QemuController::vmStopped,
             this, [this](const int exitCode) {
                 Q_UNUSED(exitCode)
+                if (m_instanceManager) m_instanceManager->releaseInstance(m_instanceName);
                 m_windowSearchTimer.stop();
                 m_windowSearchTimeout.stop();
                 m_adbBridge.disconnectFromGuest();
@@ -78,6 +81,13 @@ MainWindow::MainWindow(QWidget* parent)
         }
     });
     connect(&m_adbBridge, &AdbBridge::bootCompleted, this, [this]() {
+        const auto display = m_launchConfig.value("display").toObject();
+        if (!display.isEmpty()) {
+            const int width = display.value("width").toInt(), height = display.value("height").toInt();
+            m_inputHandler.setGuestResolution(QSize(width, height));
+            m_adbBridge.shellCommand(QString("wm size %1x%2 && wm density %3")
+                .arg(width).arg(height).arg(display.value("dpi").toInt()));
+        }
         m_statusLabel->setText(QStringLiteral("Status: Ready"));
         setAdbActionsEnabled(true);
         installPendingApk();
@@ -126,6 +136,23 @@ MainWindow::MainWindow(QWidget* parent)
             this, &MainWindow::handleCloseWaitTimeout);
 
     QTimer::singleShot(0, this, &MainWindow::startVm);
+}
+
+MainWindow::MainWindow(InstanceManager* manager, const QString& name, QWidget* parent)
+    : MainWindow(parent)
+{
+    m_instanceManager = manager; m_instanceName = name;
+    setWindowTitle("DroidBox - " + name);
+}
+
+MainWindow::~MainWindow()
+{
+    m_qemuController.disconnect(this);
+    m_adbBridge.disconnect(this);
+    // The controller must finish with the disk before another process can claim it.
+    m_qemuController.kill();
+    if (m_qemuController.waitForExit() && m_instanceManager)
+        m_instanceManager->releaseInstance(m_instanceName);
 }
 
 void MainWindow::createToolbar()
@@ -183,7 +210,17 @@ void MainWindow::createToolbar()
 
     toolbar->addSeparator();
     addStub(QStringLiteral("Shared Folder"));
-    addStub(QStringLiteral("Settings"));
+    QAction* settings = toolbar->addAction(QStringLiteral("Settings"));
+    connect(settings, &QAction::triggered, this, [this] {
+        if (!m_instanceManager) return;
+        SettingsDialog dialog(m_instanceManager->getConfig(m_instanceName), m_instanceManager->isRunning(m_instanceName), this);
+        while (dialog.exec() == QDialog::Accepted) {
+            if (m_instanceManager->setConfig(m_instanceName, dialog.getConfig())) break;
+            QMessageBox::warning(this, "Settings not saved", m_instanceManager->lastError());
+        }
+    });
+    connect(toolbar->addAction(QStringLiteral("Instances")), &QAction::triggered,
+            this, &MainWindow::instanceListRequested);
     addToolBar(Qt::RightToolBarArea, toolbar);
 }
 
@@ -208,7 +245,9 @@ QString MainWindow::findDefaultConfig() const
 
 void MainWindow::startVm()
 {
-    const QString configPath = findDefaultConfig();
+    const QString configPath = m_instanceManager
+        ? QDir(m_instanceManager->getInstanceDir(m_instanceName)).filePath("config.json") : findDefaultConfig();
+    if (m_instanceManager) m_launchConfig = m_instanceManager->getConfig(m_instanceName);
     if (configPath.isEmpty()) {
         m_statusLabel->setText(QStringLiteral("Status: Configuration missing"));
         QMessageBox::critical(
@@ -221,6 +260,7 @@ void MainWindow::startVm()
 
     m_statusLabel->setText(QStringLiteral("Status: Starting VM"));
     if (!m_qemuController.start(configPath)) {
+        if (m_instanceManager) m_instanceManager->releaseInstance(m_instanceName);
         m_statusLabel->setText(QStringLiteral("Status: VM failed to start"));
     }
 }

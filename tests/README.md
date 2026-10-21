@@ -65,3 +65,10 @@ verify the Android image, toolbar dialogs, or native window drag and drop.
 - Graceful stop requests guest ACPI shutdown first, then asks QEMU to exit if the guest does not respond; force termination is the last fallback
 - Non-VM tests (keymap parsing, config loading) run anywhere
 - Tests exit with code 0 (all pass) or 1 (any failure)
+
+## Phase 5
+
+`test_instance_manager.exe` creates temporary real qcow2 images with the bundled tools and checks CRUD,
+clone data preservation, factory reset, safe names, cross-process-compatible locks, host limits, and port conflicts.
+It is registered as `instance_manager` in CTest. Full build, hardware commands, and manual acceptance:
+[Phase 5 testing](../docs/PHASE-5-TESTING.md).

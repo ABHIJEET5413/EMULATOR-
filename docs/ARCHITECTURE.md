@@ -325,6 +325,39 @@ Physical key → InputHandler → KeymapEngine
 
 ---
 
+## Phase 5 modules
+
+- `InstanceManager` (`instance_manager.h/.cpp`): per-instance JSON and qcow2 lifecycle,
+  safe names/directories, atomic settings, real host CPU/RAM limits, unique ports across both roles,
+  external port occupancy checks, registry-operation lock, and a cross-process running lock.
+  A Windows handle denying write sharing protects disk operations against unmanaged QEMU/disk-tool writers;
+  a successful read-only qemu-img check alone is not treated as an exclusive lock.
+  Clone reads the real backing chain, copies a stopped overlay including internal snapshots,
+  and normalizes the copied backing filename while sharing the same backing image.
+  Reset stages a fresh disk and retains the original until replacement succeeds.
+- `InstanceListWindow` (`instance_list_window.h/.cpp`): launcher with create/start/stop/settings/clone/delete/reset,
+  running-state refresh, confirmation before erasure, and disk work on a dedicated QThread.
+  Each managed `MainWindow` has its own controller, ADB bridge, display, and input handler.
+- `SettingsDialog` (`settings_dialog.h/.cpp`): CPU/RAM sliders/spinboxes, six display presets, DPI,
+  QMP/ADB ports, and optional USB VID/PID. Settings apply after restart; running ports cannot change.
+- `main.cpp`: imports the existing default disk without recreating it, launches the sole instance directly,
+  otherwise shows the launcher. APK arguments target default; `--instance NAME` selects one;
+  `--instances` explicitly opens the launcher. Installed writable data uses AppLocalDataLocation.
+  File logs use `droidbox-<pid>.log` to preserve complete records across multiple app processes.
+- `MainWindow` now wires Settings and Instances actions. Boot completion applies numeric `wm size`/`wm density`
+  settings through that instance's ADB serial and updates keymap coordinate scaling.
+- `QemuController` applies display width/height as virtio-vga-gl xres/yres and validates optional usb-host IDs.
+  The instance running lock remains held until QEMU has exited.
+- `image-build/prepare-instance-base.sh`: creates a new provisioned base via a disposable overlay;
+  the original immutable base and existing default data are never mounted for writing.
+  A locally authorized development base is kept out of Git and must not be distributed.
+- `test_instance_manager.cpp`: real qcow2 CRUD/data preservation, reset, validation, port occupancy,
+  duplicate launch and running-disk protection. See [Phase 5 checks](PHASE-5-TESTING.md) and [camera findings](CAMERA.md).
+
+Runtime storage is `instances/<name>/config.json` and `overlay.qcow2`, with locks in the instances root.
+Imported default overlays retain their original backing metadata; their config's baseImage specifies the reset base.
+Both top-level adbHostPort and network.adbHostPort are saved consistently for earlier controller/config consumers.
+
 ## Design Decisions Log
 
 | Decision | Chosen | Why |

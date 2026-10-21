@@ -22,7 +22,19 @@ setfattr -n security.selinux -v u:object_r:system_file:s0 "$system_root/system/e
 if [ "$#" -eq 3 ]; then
     data_root=$(realpath "$2")
     public_key=$(realpath "$3")
-    test -d "$data_root/misc/adb"
+    test -d "$data_root" || { echo 'Expected an Android data directory.' >&2; exit 1; }
+    if [ ! -d "$data_root/misc" ]; then
+        mkdir "$data_root/misc"
+        chown 1000:999 "$data_root/misc"
+        chmod 01771 "$data_root/misc"
+        setfattr -n security.selinux -v u:object_r:system_data_file:s0 "$data_root/misc"
+    fi
+    if [ ! -d "$data_root/misc/adb" ]; then
+        mkdir "$data_root/misc/adb"
+        chown 1000:2000 "$data_root/misc/adb"
+        chmod 02750 "$data_root/misc/adb"
+        setfattr -n security.selinux -v u:object_r:adb_keys_file:s0 "$data_root/misc/adb"
+    fi
     # Never accept a private PEM key or overwrite other authorized hosts.
     grep -q 'PRIVATE KEY' "$public_key" && { echo 'Supply adbkey.pub, never adbkey.' >&2; exit 1; }
     key_file="$data_root/misc/adb/adb_keys"

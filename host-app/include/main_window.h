@@ -15,6 +15,7 @@ class QDragEnterEvent;
 class QDropEvent;
 class QLabel;
 class DisplayEmbed;
+class InstanceManager;
 
 /**
  * @file main_window.h
@@ -26,9 +27,17 @@ class MainWindow final : public QMainWindow {
 public:
     /** Create the DroidBox desktop window and prepare Phase 1 VM control. */
     explicit MainWindow(QWidget* parent = nullptr);
+    /** Open a managed instance whose running lock has already been acquired. */
+    MainWindow(InstanceManager* manager, const QString& name, QWidget* parent = nullptr);
+    /** Stop QEMU before releasing the managed instance lock. */
+    ~MainWindow() override;
 
     /** Queue an APK from the command line for installation after Android boots. */
     void queueApkInstall(const QString& apkPath);
+
+signals:
+    /** Request the multi-instance launcher from the toolbar. */
+    void instanceListRequested();
 
 protected:
     /** Shut down QEMU before allowing the application window to close. */
@@ -71,4 +80,7 @@ private:
     QTimer m_closeWaitTimer;
     bool m_closePending{false};
     bool m_allowClose{false};
+    InstanceManager* m_instanceManager{nullptr};
+    QString m_instanceName;
+    QJsonObject m_launchConfig;
 };

@@ -15,6 +15,10 @@
 /vm/images/*.qcow2
 /instances/*/overlay.qcow2
 /instances/*/*.qcow2
+/instances/*/config.json
+/instances/*.lock
+/instances/*/*.new
+/instances/*/*.reset-backup
 /vm/adb/
 
 # Runtime logs
