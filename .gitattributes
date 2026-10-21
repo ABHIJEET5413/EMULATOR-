@@ -1,0 +1,3 @@
+# Linux/Android image tooling must retain Unix line endings in Windows checkouts.
+*.sh text eol=lf
+image-build/*.rc text eol=lf
