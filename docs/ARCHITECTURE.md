@@ -237,9 +237,11 @@ The main Windows application the user interacts with.
   profile enumeration.
 - `test_adb.cpp` (Phase 4): Runs the ADB bridge against a fake ADB executable
   and checks connection and boot polling, APK install, file push and media
-  scan, PNG screenshot saving, navigation key events, disconnect handling,
-  and a readable missing-ADB error. It does not require a running VM or the
-  Android SDK platform-tools.
+  scan, PNG screenshot saving, every navigation key event, offline-transport
+  recovery, disconnect handling, and a readable missing-ADB error. It does
+  not require a running VM or the Android SDK platform-tools. All four phase
+  harnesses are registered with CTest; its Phase 1 entry checks configuration
+  loading, while the VM lifecycle variants remain explicit hardware tests.
 - Later phases add standalone harnesses for instance management.
 
 ---

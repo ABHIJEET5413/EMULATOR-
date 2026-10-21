@@ -8,6 +8,11 @@ target_link_libraries(test_vm_control
         Qt6::Core
 )
 
+add_test(NAME vm_control_config COMMAND test_vm_control --test config_load)
+set_tests_properties(vm_control_config PROPERTIES
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
+)
+
 add_executable(test_display_input
     test_display_input.cpp
 )
@@ -18,6 +23,11 @@ target_link_libraries(test_display_input
         Qt6::Core
 )
 
+add_test(NAME display_input COMMAND test_display_input)
+set_tests_properties(display_input PROPERTIES
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
+)
+
 add_executable(test_keymap
     test_keymap.cpp
 )
@@ -26,6 +36,11 @@ target_link_libraries(test_keymap
     PRIVATE
         droidbox_core
         Qt6::Core
+)
+
+add_test(NAME keymap COMMAND test_keymap)
+set_tests_properties(keymap PROPERTIES
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
 )
 
 add_custom_command(TARGET test_keymap POST_BUILD
@@ -43,4 +58,9 @@ target_link_libraries(test_adb
     PRIVATE
         droidbox_core
         Qt6::Core
+)
+
+add_test(NAME adb COMMAND test_adb)
+set_tests_properties(adb PROPERTIES
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
 )

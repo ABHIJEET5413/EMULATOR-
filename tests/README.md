@@ -9,7 +9,7 @@ This directory contains test executables for each phase.
 | `test_vm_control.cpp` | Phase 1 | QEMU launch, QMP connect, pause/resume, and stopped-VM disk snapshots |
 | `test_display_input.cpp` | Phase 2 | QMP pointer-coordinate scaling and Qt-to-QMP keycode mapping |
 | `test_keymap.cpp` | Phase 3 | Keymap JSON parsing, action dispatch |
-| `test_adb.cpp` | Phase 4 | ADB connect, install, push |
+| `test_adb.cpp` | Phase 4 | ADB connection/recovery, install, push, media scan, screenshot, navigation |
 | `test_instance_manager.cpp` | Phase 5 | Instance CRUD, overlay creation |
 | `CMakeLists.txt` | All | Build config for all tests |
 
@@ -18,6 +18,10 @@ This directory contains test executables for each phase.
 ```powershell
 # Build tests
 cmake --build build --config Release --target test_vm_control
+
+# Run all non-hardware harness checks registered with CTest
+$env:PATH = "C:\Qt\6.12.0\msvc2022_64\bin;$env:PATH"
+ctest --test-dir build -C Release --output-on-failure
 
 # Run a specific test
 .\build\Release\test_vm_control.exe --config vm\configs\default-instance.json
@@ -36,6 +40,9 @@ cmake --build build --config Release --target test_vm_control
 
 # Run keymap tests (no VM needed)
 .\build\Release\test_keymap.exe
+
+# Run the complete Phase 4 ADB bridge harness (no running guest required)
+.\build\Release\test_adb.exe
 ```
 
 ## Test Philosophy

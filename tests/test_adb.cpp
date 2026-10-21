@@ -98,7 +98,13 @@ int runFakeAdb(const int argc, char* argv[])
                && commandArguments.value(0) == QStringLiteral("getprop")) {
         output = QByteArrayLiteral("1\n");
     } else if (command == QStringLiteral("get-state")) {
-        output = QByteArrayLiteral("device\n");
+        const QString stateFile = QString::fromLocal8Bit(qgetenv("DROIDBOX_FAKE_ADB_OFFLINE_ONCE_FILE"));
+        if (!stateFile.isEmpty() && !QFile::exists(stateFile)) {
+            writeFile(stateFile, QByteArrayLiteral("offline\n"));
+            output = QByteArrayLiteral("offline\n");
+        } else {
+            output = QByteArrayLiteral("device\n");
+        }
     } else if (command == QStringLiteral("install")) {
         output = QByteArrayLiteral("Performing Streamed Install\nSuccess\n");
     } else if (command == QStringLiteral("push")) {
@@ -132,7 +138,9 @@ bool isFakeAdbInvocation(const int argc, char* argv[])
     if (first == QStringLiteral("-s")) {
         return argc >= 4;
     }
-    return first == QStringLiteral("start-server") || first == QStringLiteral("connect");
+    return first == QStringLiteral("start-server")
+        || first == QStringLiteral("connect")
+        || first == QStringLiteral("disconnect");
 }
 
 } // namespace
@@ -152,6 +160,7 @@ int main(int argc, char* argv[])
     const QString apkPath = temporaryDirectory.filePath(QStringLiteral("sample.apk"));
     const QString imagePath = temporaryDirectory.filePath(QStringLiteral("sample image.png"));
     const QString screenshotPath = temporaryDirectory.filePath(QStringLiteral("screenshot.png"));
+    const QString offlineStatePath = temporaryDirectory.filePath(QStringLiteral("offline-once.state"));
     allPassed &= check(QStringLiteral("temporary directory is available"), temporaryDirectory.isValid());
     allPassed &= check(QStringLiteral("APK fixture is created"), writeFile(apkPath, QByteArrayLiteral("fake apk")));
     allPassed &= check(QStringLiteral("file-push fixture is created"), writeFile(imagePath, QByteArrayLiteral("image")));
@@ -214,16 +223,42 @@ int main(int argc, char* argv[])
     allPassed &= check(QStringLiteral("screenshot is saved as PNG"),
                        screenshotSignalReceived && screenshotIsPng);
 
-    bridge.sendKeyEvent(3);
-    allPassed &= check(QStringLiteral("navigation key event reaches ADB"),
-                       waitUntil([&logPath]() {
-                           return logContains(logPath, QByteArrayLiteral("input|keyevent|3"));
-                       })
-                           && logContains(logPath, QByteArrayLiteral("input|keyevent|3")));
+    const QList<int> navigationKeycodes{3, 4, 187, 24, 25, 26};
+    for (const int keycode : navigationKeycodes) {
+        bridge.sendKeyEvent(keycode);
+    }
+    allPassed &= check(QStringLiteral("all navigation key events reach ADB"),
+                       waitUntil([&logPath, &navigationKeycodes]() {
+                           for (const int keycode : navigationKeycodes) {
+                               if (!logContains(logPath,
+                                                QByteArrayLiteral("input|keyevent|")
+                                                    + QByteArray::number(keycode))) {
+                                   return false;
+                               }
+                           }
+                           return true;
+                       }));
 
     bridge.disconnectFromGuest();
     allPassed &= check(QStringLiteral("disconnect clears guest readiness"),
                        !bridge.isConnected() && !bridge.isBootCompleted());
+
+    QFile::remove(offlineStatePath);
+    qputenv("DROIDBOX_FAKE_ADB_OFFLINE_ONCE_FILE", offlineStatePath.toLocal8Bit());
+    AdbBridge recoveryBridge;
+    recoveryBridge.setAdbPath(QCoreApplication::applicationFilePath());
+    bool recoveredBootCompleted = false;
+    QObject::connect(&recoveryBridge, &AdbBridge::bootCompleted, &application,
+                     [&recoveredBootCompleted]() { recoveredBootCompleted = true; });
+    recoveryBridge.connectToGuest(QStringLiteral("localhost"), 5555);
+    allPassed &= check(QStringLiteral("offline ADB transport is disconnected and recovered"),
+                       waitUntil([&recoveredBootCompleted]() { return recoveredBootCompleted; }, 10000)
+                           && recoveryBridge.isConnected()
+                           && recoveryBridge.isBootCompleted()
+                           && logContains(logPath,
+                                          QByteArrayLiteral("disconnect|localhost:5555")));
+    recoveryBridge.disconnectFromGuest();
+    qunsetenv("DROIDBOX_FAKE_ADB_OFFLINE_ONCE_FILE");
 
     AdbBridge missingAdbBridge;
     missingAdbBridge.setAdbPath(temporaryDirectory.filePath(QStringLiteral("missing-adb.exe")));
