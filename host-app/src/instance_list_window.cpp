@@ -96,7 +96,12 @@ void InstanceListWindow::refreshList()
 
 void InstanceListWindow::launchInstance(const QString& name, const QString& apk)
 {
-    if (m_job || name.isEmpty()) return;
+    if (name.isEmpty()) return;
+    if (m_job) {
+        // Preserve APK/launch requests received while a clone/create is busy.
+        connect(m_job, &QThread::finished, this, [this, name, apk] { launchInstance(name, apk); }, Qt::QueuedConnection);
+        return;
+    }
     if (auto window = m_windows.value(name)) {
         if (!m_manager->isRunning(name)) {
             connect(window, &QObject::destroyed, this, [this, name, apk] { launchInstance(name, apk); });

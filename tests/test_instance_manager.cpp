@@ -104,6 +104,12 @@ int main(int argc, char** argv)
     check(occupied.bind(QHostAddress::LocalHost, 0, QAbstractSocket::DontShareAddress), "reserve external port");
     edit = beta; edit["qmpPort"] = occupied.localPort();
     check(!manager.setConfig("beta", edit), "reject externally occupied port");
+    QTcpSocket wildcard;
+    check(wildcard.bind(QHostAddress::AnyIPv4, 0,
+        QAbstractSocket::ShareAddress | QAbstractSocket::ReuseAddressHint), "reserve shared wildcard listener like QEMU hostfwd");
+    edit = beta; edit["qmpPort"] = wildcard.localPort();
+    check(!manager.setConfig("beta", edit), "reject shared wildcard listener port");
+    check(manager.setConfig("beta", beta), "restore original ports after listener regression");
     check(manager.factoryReset("beta"), "factory reset stopped disk");
     io.start(qemuIo, {"-f", "qcow2", "-c", "read -P 0x00 0 512", cloned});
     check(io.waitForFinished(30000) && io.exitCode() == 0, "reset clears guest data");

@@ -12,15 +12,19 @@ runtime dependencies into one `DroidBoxSetup.exe`.
 Verification recorded on **21 October 2026**:
 
 - Release application and test targets build with MSVC 2022 and Qt 6.12.0.
-- All **8 registered CTest suites pass**, with zero failures.
+- All **10 registered CTest suites pass**, with zero failures.
 - Installer preflight verified **3,397 staged file paths and SHA-256 hashes**.
-- Inno Setup produced a single **1,810,419,303-byte** installer, approximately 1.81 GB.
+- Local Inno Setup output is **319,804,420 bytes**; SHA-256 and test scope are
+  recorded in [Phase 6 test results](docs/PHASE-6-TESTING.md).
+- On this PC, a silent install to a path containing spaces booted Bliss to
+  Android Home; live ADB APK, file transfer, screenshot, and navigation checks passed.
 - Previous live checks verified Android boot, ADB authorization, multiple guests,
   and keyboard input isolation. See the acceptance records linked below.
 
-**Still pending:** clean-machine offline installation, full uninstall/reinstall
+**Still pending:** clean-machine offline installation, upgrade/data-retention
 acceptance, and the complete third-party source/notices review for public
-distribution. Automated test results do not complete those checks.
+distribution. The local installer acceptance copy was removed after testing;
+automated test results do not complete those checks.
 Webcam passthrough remains experimental and unverified; a test-pattern camera
 is unavailable in the bundled QEMU build.
 

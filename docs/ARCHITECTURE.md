@@ -47,6 +47,10 @@ The main Windows application the user interacts with.
 #### Entry point and logging (Phase 1)
 - `src/main.cpp` creates the Qt Widgets application and instance launcher.
   Installer initialization uses `QCoreApplication` with `--initialize-only`.
+- `LaunchChannel` (`launch_channel.h/.cpp`) grants one UI process a lock per
+  instance data root and forwards later APK/instance launch requests over a
+  user-only local socket. Requests are size-limited and validated; a second
+  window is not started when the owner is still initializing.
 - A Qt message handler writes timestamped messages to `droidbox-<pid>.log`
   under the user's application-local data directory and to stderr.
 - The Phase 1 CLI test harness is the way to exercise VM controls; the

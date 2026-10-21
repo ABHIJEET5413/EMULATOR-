@@ -33,10 +33,12 @@ QJsonObject readObject(const QString& path)
 bool portFree(int port)
 {
     QTcpSocket socket;
-    if (!socket.bind(QHostAddress::LocalHost, static_cast<quint16>(port),
+    // On Windows a shared wildcard listener (QEMU hostfwd) can coexist with a
+    // loopback-only bind. Reserve all interfaces to detect that listener too.
+    if (!socket.bind(QHostAddress::AnyIPv4, static_cast<quint16>(port),
                      QAbstractSocket::DontShareAddress)) return false;
     QTcpSocket ipv6;
-    if (ipv6.bind(QHostAddress::LocalHostIPv6, static_cast<quint16>(port),
+    if (ipv6.bind(QHostAddress::AnyIPv6, static_cast<quint16>(port),
                   QAbstractSocket::DontShareAddress)) return true;
     return ipv6.error() == QAbstractSocket::SocketAddressNotAvailableError
         || ipv6.error() == QAbstractSocket::UnsupportedSocketOperationError;

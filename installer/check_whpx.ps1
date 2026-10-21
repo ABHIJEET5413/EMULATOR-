@@ -2,7 +2,7 @@
 param(
     [switch]$Enable,
     [switch]$Probe,
-    [string]$QemuPath = (Join-Path $PSScriptRoot 'vm\qemu\qemu-system-x86_64.exe'),
+    [string]$QemuPath,
     [string]$ResultPath
 )
 $ErrorActionPreference = 'Stop'
@@ -10,6 +10,9 @@ $ErrorActionPreference = 'Stop'
 $result = [ordered]@{ status='Unknown'; message=''; firmware='Unknown'; feature='Unknown'; restartRequired=$false; probePassed=$false }
 $code = 20
 try {
+    # Windows PowerShell 5.1 may not initialize PSScriptRoot while evaluating
+    # parameter defaults. Resolve it here so Setup's feature-only check works.
+    if (-not $QemuPath) { $QemuPath = Join-Path $PSScriptRoot 'vm\qemu\qemu-system-x86_64.exe' }
     $machine = Get-CimInstance Win32_ComputerSystem
     $processors = @(Get-CimInstance Win32_Processor)
     if ($machine.HypervisorPresent) { $result.firmware = 'HypervisorActive' }

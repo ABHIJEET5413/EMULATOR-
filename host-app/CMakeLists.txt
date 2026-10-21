@@ -16,6 +16,8 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS Core Network Widgets Gui)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/$<CONFIG>")
 
 add_library(droidbox_core STATIC
+    include/launch_channel.h
+    src/launch_channel.cpp
     include/instance_manager.h
     include/instance_list_window.h
     include/settings_dialog.h
@@ -57,7 +59,7 @@ if(WIN32)
     target_link_libraries(droidbox_core PUBLIC user32)
 endif()
 
-add_executable(DroidBox
+add_executable(DroidBox WIN32
     src/main.cpp
 )
 

@@ -90,6 +90,7 @@ begin
   LastWhpxMessage := '';
   if Exec(PowerShell, '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ScriptPath + '" ' + Options + ' -ResultPath "' + ResultFile + '"',
       '', SW_HIDE, ewWaitUntilTerminated, Code) then Result := Code;
+  Log('WHPX check exit code: ' + IntToStr(Result));
   if LoadStringsFromFile(ResultFile + '.txt', Lines) then
     for Index := 0 to GetArrayLength(Lines) - 1 do begin
       LastWhpxMessage := LastWhpxMessage + Lines[Index] + #13#10;
@@ -106,15 +107,15 @@ begin
     Code := CheckWhpx(ExpandConstant('{tmp}\check_whpx.ps1'), '');
     WhpxReady := Code = 0;
     if Code = 10 then
-      EnableRequested := MsgBox('Windows Hypervisor Platform is disabled. Enable it during installation?' + #13#10 +
-        'A Windows restart may be required. No downloads will be performed.', mbConfirmation, MB_YESNO) = IDYES
+      EnableRequested := SuppressibleMsgBox('Windows Hypervisor Platform is disabled. Enable it during installation?' + #13#10 +
+        'A Windows restart may be required. No downloads will be performed.', mbConfirmation, MB_YESNO, IDNO) = IDYES
     else if Code = 11 then begin
       RestartRequired := True;
-      MsgBox('Restart Windows after installation before starting Android.', mbInformation, MB_OK);
+      SuppressibleMsgBox('Restart Windows after installation before starting Android.', mbInformation, MB_OK, IDOK);
     end else if Code = 12 then
-      MsgBox('Enable Intel VT-x or AMD SVM in BIOS/UEFI and restart Windows before starting Android.', mbInformation, MB_OK)
+      SuppressibleMsgBox('Enable Intel VT-x or AMD SVM in BIOS/UEFI and restart Windows before starting Android.', mbInformation, MB_OK, IDOK)
     else if Code <> 0 then
-      MsgBox('WHPX status could not be verified. Installation can continue. Run check_whpx.ps1 as Administrator afterwards.', mbInformation, MB_OK);
+      SuppressibleMsgBox('WHPX status could not be verified: ' + LastWhpxMessage + 'Run check_whpx.ps1 as Administrator afterwards.', mbInformation, MB_OK, IDOK);
   end;
 end;
 
@@ -134,7 +135,7 @@ begin
     RestartRequired := (Code = 11) or RestartRequired;
     WhpxReady := Code = 0;
     if (Code <> 0) and (Code <> 11) then
-      MsgBox('WHPX could not be made ready: ' + LastWhpxMessage + 'Check Windows component files or BIOS settings. No automatic restart will occur.', mbInformation, MB_OK);
+      SuppressibleMsgBox('WHPX could not be made ready: ' + LastWhpxMessage + 'Check Windows component files or BIOS settings. No automatic restart will occur.', mbInformation, MB_OK, IDOK);
     EnableRequested := False;
   end;
 end;
@@ -183,7 +184,7 @@ begin
     Code := CheckWhpx(ExpandConstant('{app}\check_whpx.ps1'), '-Probe');
     WhpxReady := Code = 0;
     if Code = 11 then RestartRequired := True;
-    if not WhpxReady and not WizardSilent then MsgBox('Android acceleration is not ready: ' + LastWhpxMessage + 'Run the installed WHPX check before launching Android.', mbInformation, MB_OK);
+    if not WhpxReady then SuppressibleMsgBox('Android acceleration is not ready: ' + LastWhpxMessage + 'Run the installed WHPX check before launching Android.', mbInformation, MB_OK, IDOK);
   end;
 end;
 

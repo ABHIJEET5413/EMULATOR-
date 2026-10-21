@@ -51,10 +51,16 @@ int main(int argc, char* argv[])
     parser.addHelpOption();
     parser.addOption({QStringLiteral("adb"), QStringLiteral("Path to adb.exe."), QStringLiteral("path"), QStringLiteral("vm/adb/adb.exe")});
     parser.addOption({QStringLiteral("apk"), QStringLiteral("APK to install or reinstall in the guest."), QStringLiteral("path")});
+    parser.addOption({QStringLiteral("port"), QStringLiteral("Target instance's ADB host port."), QStringLiteral("port"), QStringLiteral("5555")});
     parser.process(application);
     if (!parser.isSet(QStringLiteral("apk"))) {
         QTextStream(stderr) << "Provide --apk with an APK you want to install in the test guest.\n";
         return 2;
+    }
+    bool portValid = false;
+    const int port = parser.value(QStringLiteral("port")).toInt(&portValid);
+    if (!portValid || port < 1024 || port > 65535) {
+        QTextStream(stderr) << "Provide --port between 1024 and 65535.\n"; return 2;
     }
 
     AdbBridge bridge;
@@ -69,7 +75,7 @@ int main(int argc, char* argv[])
                          ++completedCommands;
                          failedCommands += code != 0;
                      });
-    bridge.connectToGuest(QStringLiteral("localhost"), 5555);
+    bridge.connectToGuest(QStringLiteral("localhost"), port);
     if (!check(QStringLiteral("live bridge connects and verifies Android boot"),
                waitUntil([&]() { return bridge.isBootCompleted() || !errors.isEmpty(); }, 20000)
                    && bridge.isBootCompleted())) {

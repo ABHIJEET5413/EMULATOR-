@@ -13,6 +13,7 @@
 #include "main_window.h"
 #include "instance_manager.h"
 #include "instance_list_window.h"
+#include "launch_channel.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -99,13 +100,26 @@ int main(int argc, char* argv[])
     const QStringList arguments = application->arguments();
     for (qsizetype index = 1; index < arguments.size(); ++index) {
         if (QFileInfo(arguments.at(index)).suffix().compare(QStringLiteral("apk"), Qt::CaseInsensitive) == 0) {
-            apkToInstall = arguments.at(index);
+            apkToInstall = QFileInfo(arguments.at(index)).absoluteFilePath();
             break;
         }
     }
 
     const QString root = InstanceManager::findResourceRoot();
     InstanceManager manager(root, InstanceManager::defaultInstancesRoot(root));
+    const int selected = arguments.indexOf("--instance");
+    const QString requestedInstance = selected >= 0 && selected + 1 < arguments.size()
+        ? arguments.at(selected + 1) : QString{};
+    const QJsonObject request{{"command", "launch"}, {"instance", requestedInstance},
+        {"apk", apkToInstall}, {"showInstances", arguments.contains("--instances")}};
+    LaunchChannel channel;
+    if (!initializeOnly) {
+        const auto role = channel.startOrForward(manager.instancesRoot(), request);
+        if (role == LaunchChannel::Role::Forwarded) return 0;
+        if (role == LaunchChannel::Role::Error) {
+            QMessageBox::warning(nullptr, "DroidBox launch unavailable", channel.lastError()); return 1;
+        }
+    }
     if (!manager.initialize()) {
         if (initializeOnly) { qCritical().noquote() << manager.lastError(); return 1; }
         QMessageBox::critical(nullptr, "Instance storage unavailable", manager.lastError()); return 1;
@@ -118,14 +132,24 @@ int main(int argc, char* argv[])
     }
     if (initializeOnly) { qInfo() << "Default instance is initialized."; return 0; }
     InstanceListWindow window(&manager);
-    const auto instances = manager.listInstances();
-    const int selected = arguments.indexOf("--instance");
-    if (selected >= 0 && selected + 1 < arguments.size())
-        window.launchInstance(arguments.at(selected + 1), apkToInstall);
-    else if (!apkToInstall.isEmpty()) window.launchInstance("default", apkToInstall);
-    else if (instances.size() == 1 && !arguments.contains("--instances")) window.launchInstance(instances.first().name);
-    else window.show();
-    // A failed launch must leave an accessible launcher, never an invisible process.
-    if (QApplication::topLevelWidgets().size() == 1) window.show();
+    const auto launch = [&window, &manager](const QJsonObject& incoming) {
+        const auto instances = manager.listInstances();
+        const QString instance = incoming.value("instance").toString();
+        const QString apk = incoming.value("apk").toString();
+        if (!instance.isEmpty()) window.launchInstance(instance, apk);
+        else if (!apk.isEmpty()) {
+            if (manager.getConfig("default").isEmpty() && !manager.createInstance("default")) {
+                QMessageBox::warning(&window, "Default instance unavailable", manager.lastError());
+                window.show(); return;
+            }
+            window.launchInstance("default", apk);
+        } else if (instances.size() == 1 && !incoming.value("showInstances").toBool())
+            window.launchInstance(instances.first().name);
+        else { window.showNormal(); window.raise(); window.activateWindow(); }
+        // A failed launch must leave an accessible launcher.
+        if (QApplication::topLevelWidgets().size() == 1) window.show();
+    };
+    QObject::connect(&channel, &LaunchChannel::requestReceived, &window, launch);
+    launch(request);
     return application->exec();
 }

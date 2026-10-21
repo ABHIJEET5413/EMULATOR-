@@ -12,6 +12,8 @@ This directory contains test executables for each phase.
 | `test_adb.cpp` | Phase 4 | ADB connection/recovery, install, push, media scan, screenshot, navigation |
 | `test_adb_live.cpp` | Phase 4 | Real guest connection, APK install, file push/media scan, screenshot, navigation |
 | `test_instance_manager.cpp` | Phase 5 | Instance CRUD, overlay creation |
+| `test_launch_channel.cpp` | Phase 6 | Single UI ownership and validated cross-process launch/APK forwarding |
+| `test_whpx.ps1` | Phase 6 | WHPX script invocation and mocked status/enablement cases |
 | `CMakeLists.txt` | All | Build config for all tests |
 
 ## Running Tests
@@ -84,6 +86,12 @@ press/release codes, cross-window modifier release, and host dialog input. It re
 Windows desktop; it does not require Android or WHPX.
 
 ## Phase 6
+
+`launch_channel` exercises the per-user UI lease, independent instance roots,
+quoted/Unicode APK paths, malformed and oversized request rejection, and a
+non-responsive owner. `whpx_script` checks the PowerShell script through its
+real `-File` entry point and child-process mocks; it never enables Windows
+features.
 
 `test_installer.ps1` is a static packaging preflight registered as
 `installer_preflight` on Windows. It parses packaging PowerShell scripts, checks
