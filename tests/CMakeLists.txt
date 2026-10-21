@@ -34,3 +34,13 @@ add_custom_command(TARGET test_keymap POST_BUILD
         "$<TARGET_FILE_DIR:test_keymap>/keymaps"
     COMMENT "Copying keymap profiles for the test harness"
 )
+
+add_executable(test_adb
+    test_adb.cpp
+)
+
+target_link_libraries(test_adb
+    PRIVATE
+        droidbox_core
+        Qt6::Core
+)

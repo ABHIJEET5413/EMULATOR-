@@ -5,9 +5,11 @@
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QFileInfo>
+#include <QFileDialog>
 #include <QLabel>
 #include <QMimeData>
 #include <QMessageBox>
+#include <QStandardPaths>
 #include <QStatusBar>
 #include <QToolBar>
 #include <QUrl>
@@ -16,6 +18,8 @@
 
 #include "display_embed.h"
 #include "main_window.h"
+
+#include <utility>
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
@@ -33,6 +37,7 @@ MainWindow::MainWindow(QWidget* parent)
 
     m_statusLabel = new QLabel(QStringLiteral("Status: Starting"), this);
     statusBar()->addPermanentWidget(m_statusLabel);
+    setAdbActionsEnabled(false);
 
     m_windowSearchTimer.setInterval(500);
     m_windowSearchTimeout.setSingleShot(true);
@@ -40,11 +45,18 @@ MainWindow::MainWindow(QWidget* parent)
 
     connect(&m_qemuController, &QemuController::vmStarted,
             this, &MainWindow::beginDisplayWindowSearch);
+    connect(&m_qemuController, &QemuController::vmStarted,
+            this, [this]() {
+                m_statusLabel->setText(QStringLiteral("Status: Connecting to Android"));
+                m_adbBridge.connectToGuest(QStringLiteral("localhost"), 5555);
+            });
     connect(&m_qemuController, &QemuController::vmStopped,
             this, [this](const int exitCode) {
                 Q_UNUSED(exitCode)
                 m_windowSearchTimer.stop();
                 m_windowSearchTimeout.stop();
+                m_adbBridge.disconnectFromGuest();
+                setAdbActionsEnabled(false);
                 m_displayEmbed->clearEmbeddedWindow();
                 m_statusLabel->setText(QStringLiteral("Status: Stopped"));
                 if (m_closePending) {
@@ -55,6 +67,47 @@ MainWindow::MainWindow(QWidget* parent)
             });
     connect(&m_qemuController, &QemuController::vmError,
             this, &MainWindow::handleVmError);
+    connect(&m_adbBridge, &AdbBridge::connected, this,
+            [this](const QString& serial) {
+                m_statusLabel->setText(QStringLiteral("Status: Connected (%1), booting...").arg(serial));
+            });
+    connect(&m_adbBridge, &AdbBridge::disconnected, this, [this]() {
+        setAdbActionsEnabled(false);
+        if (m_qemuController.isRunning()) {
+            m_statusLabel->setText(QStringLiteral("Status: Reconnecting to Android"));
+        }
+    });
+    connect(&m_adbBridge, &AdbBridge::bootCompleted, this, [this]() {
+        m_statusLabel->setText(QStringLiteral("Status: Ready"));
+        setAdbActionsEnabled(true);
+        installPendingApk();
+    });
+    connect(&m_adbBridge, &AdbBridge::installProgress, this, [this](const QString& progress) {
+        if (progress == QStringLiteral("installing")) {
+            statusBar()->showMessage(QStringLiteral("Installing APK..."));
+        }
+    });
+    connect(&m_adbBridge, &AdbBridge::apkInstallFinished, this,
+            [this](const bool success, const QString& message) {
+                if (success) {
+                    statusBar()->showMessage(message, 6000);
+                } else {
+                    QMessageBox::warning(this, QStringLiteral("APK installation failed"), message);
+                }
+            });
+    connect(&m_adbBridge, &AdbBridge::filePushFinished, this,
+            [this](const bool success, const QString& message) {
+                if (success) {
+                    statusBar()->showMessage(message, 6000);
+                } else {
+                    QMessageBox::warning(this, QStringLiteral("File copy failed"), message);
+                }
+            });
+    connect(&m_adbBridge, &AdbBridge::screenshotSaved, this, [this](const QString& path) {
+        statusBar()->showMessage(QStringLiteral("Screenshot saved to %1").arg(path), 6000);
+    });
+    connect(&m_adbBridge, &AdbBridge::errorOccurred,
+            this, &MainWindow::handleAdbError);
     connect(&m_windowSearchTimer, &QTimer::timeout,
             this, &MainWindow::searchForQemuWindow);
     connect(&m_windowSearchTimeout, &QTimer::timeout,
@@ -92,16 +145,29 @@ void MainWindow::createToolbar()
         });
     };
 
-    addStub(QStringLiteral("Home"));
-    addStub(QStringLiteral("Back"));
-    addStub(QStringLiteral("Recents"));
+    const auto addKeyAction = [this, toolbar](const QString& label, const int keycode) {
+        QAction* action = toolbar->addAction(label);
+        m_adbActions.append(action);
+        connect(action, &QAction::triggered, this, [this, keycode]() {
+            m_adbBridge.sendKeyEvent(keycode);
+        });
+    };
+
+    addKeyAction(QStringLiteral("Home"), 3);
+    addKeyAction(QStringLiteral("Back"), 4);
+    addKeyAction(QStringLiteral("Recents"), 187);
     toolbar->addSeparator();
-    addStub(QStringLiteral("Volume +"));
-    addStub(QStringLiteral("Volume -"));
+    addKeyAction(QStringLiteral("Volume +"), 24);
+    addKeyAction(QStringLiteral("Volume -"), 25);
+    addKeyAction(QStringLiteral("Power"), 26);
     toolbar->addSeparator();
     addStub(QStringLiteral("Rotate"));
-    addStub(QStringLiteral("Screenshot"));
-    addStub(QStringLiteral("Install APK"));
+    QAction* screenshotAction = toolbar->addAction(QStringLiteral("Screenshot"));
+    m_adbActions.append(screenshotAction);
+    connect(screenshotAction, &QAction::triggered, this, &MainWindow::saveScreenshot);
+    QAction* installAction = toolbar->addAction(QStringLiteral("Install APK"));
+    m_adbActions.append(installAction);
+    connect(installAction, &QAction::triggered, this, &MainWindow::installSelectedApk);
     toolbar->addSeparator();
 
     m_fullscreenAction = toolbar->addAction(QStringLiteral("Fullscreen"));
@@ -202,6 +268,80 @@ void MainWindow::handleVmError(const QString& message)
     QMessageBox::critical(this, QStringLiteral("DroidBox VM error"), message);
 }
 
+void MainWindow::handleAdbError(const QString& message)
+{
+    qWarning().noquote() << message;
+    if (!m_adbBridge.isBootCompleted()) {
+        m_statusLabel->setText(QStringLiteral("Status: Android unavailable"));
+    }
+    QMessageBox::warning(this, QStringLiteral("DroidBox Android connection"), message);
+}
+
+void MainWindow::setAdbActionsEnabled(const bool enabled)
+{
+    for (QAction* action : std::as_const(m_adbActions)) {
+        if (action) {
+            action->setEnabled(enabled);
+        }
+    }
+}
+
+void MainWindow::installSelectedApk()
+{
+    const QString path = QFileDialog::getOpenFileName(
+        this,
+        QStringLiteral("Select APK to install"),
+        QDir::homePath(),
+        QStringLiteral("Android packages (*.apk)"));
+    if (!path.isEmpty()) {
+        m_adbBridge.installApk(path);
+    }
+}
+
+void MainWindow::saveScreenshot()
+{
+    QString directory = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+    if (directory.isEmpty()) {
+        directory = QDir::homePath();
+    }
+    const QString path = QFileDialog::getSaveFileName(
+        this,
+        QStringLiteral("Save Android screenshot"),
+        QDir(directory).filePath(QStringLiteral("screenshot.png")),
+        QStringLiteral("PNG images (*.png)"));
+    if (!path.isEmpty()) {
+        m_adbBridge.screenshot(path);
+    }
+}
+
+void MainWindow::queueApkInstall(const QString& apkPath)
+{
+    const QFileInfo apkInfo(apkPath);
+    if (!apkInfo.exists() || !apkInfo.isFile()
+        || apkInfo.suffix().compare(QStringLiteral("apk"), Qt::CaseInsensitive) != 0) {
+        QMessageBox::warning(this,
+                             QStringLiteral("APK not found"),
+                             QStringLiteral("The command-line APK path is not an existing .apk file: %1")
+                                 .arg(QDir::toNativeSeparators(apkPath)));
+        return;
+    }
+
+    m_pendingApkPath = apkInfo.absoluteFilePath();
+    if (m_adbBridge.isBootCompleted()) {
+        installPendingApk();
+    }
+}
+
+void MainWindow::installPendingApk()
+{
+    if (m_pendingApkPath.isEmpty()) {
+        return;
+    }
+    const QString apkPath = m_pendingApkPath;
+    m_pendingApkPath.clear();
+    m_adbBridge.installApk(apkPath);
+}
+
 void MainWindow::handleCloseWaitTimeout()
 {
     if (!m_closePending || !m_qemuController.isRunning()) {
@@ -264,10 +404,23 @@ void MainWindow::dragEnterEvent(QDragEnterEvent* event)
 
 void MainWindow::dropEvent(QDropEvent* event)
 {
+    if (!m_adbBridge.isBootCompleted()) {
+        QMessageBox::warning(this,
+                             QStringLiteral("Android is not ready"),
+                             QStringLiteral("Wait for the Android guest to finish booting before dropping files."));
+        event->ignore();
+        return;
+    }
+
     for (const QUrl& url : event->mimeData()->urls()) {
         const QString path = url.toLocalFile();
-        if (!path.isEmpty()) {
-            qInfo().noquote() << "File dropped:" << path << "(file handling is not connected yet).";
+        if (path.isEmpty()) {
+            continue;
+        }
+        if (QFileInfo(path).suffix().compare(QStringLiteral("apk"), Qt::CaseInsensitive) == 0) {
+            m_adbBridge.installApk(path);
+        } else {
+            m_adbBridge.pushFile(path, QStringLiteral("/sdcard/Download/"));
         }
     }
     event->acceptProposedAction();

@@ -86,9 +86,15 @@ The main Windows application the user interacts with.
 - **What**: Qt Widgets desktop window with the guest display, side toolbar,
   and VM status bar.
 - **Why**: Presents the Phase 1 QEMU controller as one interactive desktop app.
-- **How**: Starts the default instance, connects controller lifecycle signals,
-  shows user-facing errors, logs placeholder toolbar and drag/drop actions,
-  and requests VM shutdown before closing. Fullscreen toggles immediately.
+- **How**: Starts the default instance and connects controller lifecycle
+  signals. When QEMU starts, it asks `AdbBridge` to connect to
+  `localhost:5555`; the status bar follows ADB connection and Android boot
+  progress. Home, Back, Recents, volume, and Power actions send Android key
+  events. Screenshot and APK buttons open file dialogs. Dropped APKs are
+  installed, other dropped files are copied to `/sdcard/Download/`, and an
+  APK path passed on the command line is installed after Android is ready.
+  It also shows user-facing errors and requests VM shutdown before closing.
+  Fullscreen toggles immediately.
 
 #### 1.4 `DisplayEmbed` (Phase 2)
 - **What**: Embeds the QEMU guest display inside the Qt main window.
@@ -134,12 +140,20 @@ The main Windows application the user interacts with.
   are normalized to QMP's absolute input range.
 
 #### 1.8 `AdbBridge` (Phase 4)
-- **What**: Manages ADB connection to the guest Android.
+- **What**: Manages the host ADB process and guest Android connection state.
 - **Why**: ADB is required for APK install, file push, screenshots,
-  and running shell commands inside the guest.
-- **How**: Runs `adb.exe` commands via `QProcess`. Connects to the
-  guest via `adb connect localhost:<port>` (port forwarded by QEMU's
-  `-netdev user,hostfwd=tcp::5555-:5555`).
+  navigation controls, media indexing, and Android shell commands.
+- **How**: Locates `adb.exe` beside the application in `vm/adb` or `adb`,
+  then falls back to `PATH`. Each operation runs asynchronously in its own
+  `QProcess`. On VM start it launches the ADB server, retries
+  `adb connect localhost:5555` every two seconds for up to 60 seconds, then
+  polls `shell getprop sys.boot_completed` until Android is ready. A health
+  poll detects disconnects and reconnects. APK installation uses
+  `adb install -r`; file transfer uses `adb push` followed by Android's
+  media-scanner broadcast; screenshots use `exec-out screencap -p` and are
+  saved atomically as PNG. All guest commands target the `localhost:5555`
+  serial. The QEMU user-mode forward must expose host TCP port 5555 to guest
+  TCP port 5555.
 
 #### 1.9 `InstanceManager` (Phase 5)
 - **What**: Manages multiple Android instances.
@@ -218,7 +232,12 @@ The main Windows application the user interacts with.
 - `test_keymap.cpp` (Phase 3): Checks profile JSON parsing/saving, key
   lookup, all five key actions, profile-to-guest coordinate scaling, and
   profile enumeration.
-- Later phases add standalone harnesses for ADB and instance management.
+- `test_adb.cpp` (Phase 4): Runs the ADB bridge against a fake ADB executable
+  and checks connection and boot polling, APK install, file push and media
+  scan, PNG screenshot saving, navigation key events, disconnect handling,
+  and a readable missing-ADB error. It does not require a running VM or the
+  Android SDK platform-tools.
+- Later phases add standalone harnesses for instance management.
 
 ---
 
@@ -226,19 +245,31 @@ The main Windows application the user interacts with.
 
 ### APK Installation Flow
 ```
-User drags .apk onto window
-        │
-        ▼
-Qt drop event → AdbBridge::installApk(path)
-        │
-        ▼
-QProcess: adb install -r <path>
-        │
-        ▼
-Parse stdout → success/failure
-        │
-        ▼
-Show toast notification in host UI
+User selects, drops, or opens an .apk
+        |
+        v
+MainWindow queues it until Android reports boot complete
+        |
+        v
+AdbBridge -> QProcess: adb -s localhost:5555 install -r <path>
+        |
+        v
+Show success in the status bar or the ADB error in a dialog
+```
+
+### ADB Connection and File Flow
+```
+QemuController::vmStarted -> AdbBridge::connectToGuest(localhost, 5555)
+        |
+        +-- adb start-server
+        +-- retry adb connect localhost:5555 every 2 seconds
+        +-- poll sys.boot_completed and report Ready
+        +-- poll device health and reconnect after a disconnect
+
+Dropped non-APK file -> adb push -> /sdcard/Download/<filename>
+                                      -> media scanner broadcast
+Screenshot action -> adb exec-out screencap -p -> atomic local PNG save
+Navigation toolbar -> adb shell input keyevent <Android keycode>
 ```
 
 ### VM Lifecycle

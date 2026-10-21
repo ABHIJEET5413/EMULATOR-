@@ -14,6 +14,7 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS Core Network Widgets Gui)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/$<CONFIG>")
 
 add_library(droidbox_core STATIC
+    include/adb_bridge.h
     include/display_embed.h
     include/input_handler.h
     include/keymap_engine.h
@@ -22,6 +23,7 @@ add_library(droidbox_core STATIC
     include/qemu_controller.h
     include/qmp_client.h
     src/display_embed.cpp
+    src/adb_bridge.cpp
     src/input_handler.cpp
     src/keymap_engine.cpp
     src/keymap_profile.cpp

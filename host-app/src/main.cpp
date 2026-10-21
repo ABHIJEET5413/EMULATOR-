@@ -2,6 +2,7 @@
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QMutex>
 #include <QMutexLocker>
 #include <QLoggingCategory>
@@ -82,7 +83,19 @@ int main(int argc, char* argv[])
     qInstallMessageHandler(messageHandler);
 
     qInfo() << "DroidBox desktop interface initialized.";
+    QString apkToInstall;
+    const QStringList arguments = application.arguments();
+    for (qsizetype index = 1; index < arguments.size(); ++index) {
+        if (QFileInfo(arguments.at(index)).suffix().compare(QStringLiteral("apk"), Qt::CaseInsensitive) == 0) {
+            apkToInstall = arguments.at(index);
+            break;
+        }
+    }
+
     MainWindow window;
     window.show();
+    if (!apkToInstall.isEmpty()) {
+        window.queueApkInstall(apkToInstall);
+    }
     return application.exec();
 }

@@ -1,8 +1,11 @@
 #pragma once
 
+#include <QList>
 #include <QMainWindow>
 #include <QTimer>
+#include <QString>
 
+#include "adb_bridge.h"
 #include "input_handler.h"
 #include "qemu_controller.h"
 
@@ -24,6 +27,9 @@ public:
     /** Create the DroidBox desktop window and prepare Phase 1 VM control. */
     explicit MainWindow(QWidget* parent = nullptr);
 
+    /** Queue an APK from the command line for installation after Android boots. */
+    void queueApkInstall(const QString& apkPath);
+
 protected:
     /** Shut down QEMU before allowing the application window to close. */
     void closeEvent(QCloseEvent* event) override;
@@ -31,10 +37,10 @@ protected:
     /** Keep the fullscreen toolbar action synchronized with window state changes. */
     void changeEvent(QEvent* event) override;
 
-    /** Accept files so Phase 2 can log drops for later phases. */
+    /** Accept local files for ADB transfer after the guest is ready. */
     void dragEnterEvent(QDragEnterEvent* event) override;
 
-    /** Log dropped file paths without installing or copying them yet. */
+    /** Install dropped APKs or copy other files into Android Downloads. */
     void dropEvent(QDropEvent* event) override;
 
 private:
@@ -44,14 +50,22 @@ private:
     void beginDisplayWindowSearch();
     void searchForQemuWindow();
     void handleVmError(const QString& message);
+    void handleAdbError(const QString& message);
     void handleCloseWaitTimeout();
     void updateFullscreenAction();
+    void setAdbActionsEnabled(bool enabled);
+    void installSelectedApk();
+    void saveScreenshot();
+    void installPendingApk();
 
     QemuController m_qemuController;
+    AdbBridge m_adbBridge;
     InputHandler m_inputHandler;
     DisplayEmbed* m_displayEmbed{nullptr};
     QLabel* m_statusLabel{nullptr};
     QAction* m_fullscreenAction{nullptr};
+    QList<QAction*> m_adbActions;
+    QString m_pendingApkPath;
     QTimer m_windowSearchTimer;
     QTimer m_windowSearchTimeout;
     QTimer m_closeWaitTimer;
