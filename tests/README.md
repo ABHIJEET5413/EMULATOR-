@@ -77,3 +77,8 @@ It is registered as `instance_manager` in CTest. Full build, hardware commands, 
 including all display presets, performance limits, port warnings, camera controls, and confirmed/canceled disk operations.
 It is registered as `phase5_ui`; the Create-button case requires `vm/images/bliss-provisioned.qcow2`.
 All disk mutations in this harness use isolated temporary instance directories.
+
+`test_native_keyboard.exe` is registered as `native_keyboard` on Windows. It uses two foreign native
+windows and QMP protocol fixtures to verify ordinary typing with keymaps disabled, focus isolation,
+press/release codes, cross-window modifier release, and host dialog input. It requires an interactive
+Windows desktop; it does not require Android or WHPX.

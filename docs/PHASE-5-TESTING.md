@@ -10,9 +10,15 @@
 - Confirmed canceled Delete/Reset preserve the original disk hash and configuration; confirmed reset
   clears a guest-sector marker and confirmed deletion preserves the other instance.
 - Reran both live WHPX guests to Ready and verified their independent ADB connections and display overrides.
-- Native keyboard focus isolation remains unverified: Windows accepted automated keystroke injection,
-  but the guest search field did not change. This does not establish whether physical keyboard input fails;
-  direct user verification has been requested before claiming every interactive check passed.
+- The user subsequently confirmed physical typing failed too. The old Windows hook handled mapped keys only,
+  leaving ordinary typing to an SDL keyboard path that did not deliver input after embedding.
+- Fixed ordinary native keyboard forwarding over the focused guest's QMP connection, independent of
+  keymap enablement. Key-up releases every owner after a focus change, and host dialogs retain normal input.
+- Keyboard-fix acceptance rerun: all **seven** suites passed three consecutive runs, including the new
+  `native_keyboard` regression with separate foreign native windows and QMP protocol fixtures.
+- Live Windows keyboard injection now enters `droidalpha` in default and `droidbeta` in phase5-smoke.
+  Backspace produces `droidalph` and `droidbet`, respectively; typing in the second guest leaves the first unchanged.
+  The same Windows injection that did not reach Android before the fix now succeeds.
 - Release build succeeded with Qt 6.12 / MSVC 2022.
 - The initial five CTest suites also passed three consecutive runs (`--repeat until-fail:3`), including Phase 1-4 regressions.
 - Real qcow2 tests verified cloned guest-sector data and internal snapshots, reset clearing data,
@@ -27,8 +33,9 @@
 - Confirmed both instances stopped via graceful QMP quit after the guests ignored ACPI powerdown.
 - Open Camera stayed open with a camera-unavailable message, zero detected cameras, and an empty crash log.
 
-Physical webcam passthrough is unverified. Focus-sensitive input and the remaining interactive checklist
-below still need user acceptance. The stopped `phase5-smoke` instance is retained locally for that review.
+Physical webcam passthrough remains an unverified experimental option, not a certified camera feature.
+Automated, widget, and live keyboard isolation checks pass. The checklist below remains available for user review.
+The `phase5-smoke` instance is retained locally for that review.
 Its development base authorizes only this PC's supplied public key and is excluded from Git.
 
 ## Build (PowerShell, repository root)
@@ -47,6 +54,8 @@ Each app process logs to `%LOCALAPPDATA%/DroidBox/DroidBox/droidbox-<pid>.log`, 
 `test_instance_manager` uses temporary 16 MB qcow2 images and the bundled `qemu-img`/`qemu-io`; it does not erase user instances.
 `test_phase5_ui` tests real Qt controls with `QT_QPA_PLATFORM=offscreen` and isolated temporary instance directories.
 Its Create-button check requires the provisioned base below; no user instances are cloned, reset, or deleted.
+`test_native_keyboard` requires a Windows desktop. It briefly opens two process-fixture windows and a host edit
+control to verify focus routing without depending on SDL, Android, a disk image, or WHPX.
 
 ## Prepare the base for fresh instances
 
@@ -80,7 +89,7 @@ If the default config was generated before preparation, review its `baseImage` b
 - [ ] Create two instances; each has `config.json` and a small `overlay.qcow2`.
 - [ ] Invalid, duplicate, Windows reserved, and traversal names are rejected.
 - [ ] Start both instances; launcher reports Running and their QMP/ADB ports differ.
-- [ ] Switch windows; input and navigation affect only the focused/selected guest.
+- [x] Switch windows; native keyboard input affects only the focused guest (live typing and regression verified).
 - [ ] A second DroidBox process cannot launch the same instance.
 - [ ] Stop closes the selected VM gracefully; launcher changes to Stopped.
 - [ ] Clone a stopped instance; an installed app or file appears in the clone.

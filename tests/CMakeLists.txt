@@ -84,3 +84,14 @@ set_tests_properties(phase5_ui PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
     TIMEOUT 90
 )
+
+if(WIN32)
+    add_executable(test_native_keyboard test_native_keyboard.cpp)
+    target_link_libraries(test_native_keyboard PRIVATE droidbox_core)
+    add_test(NAME native_keyboard COMMAND test_native_keyboard)
+    set_tests_properties(native_keyboard PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
+        ENVIRONMENT "QT_QPA_PLATFORM=windows"
+        TIMEOUT 45
+    )
+endif()

@@ -110,10 +110,14 @@ The main Windows application the user interacts with.
 - **What**: Translates host mouse/keyboard events to guest input.
 - **Why**: User expects to use their mouse as a finger and their
   keyboard for typing inside Android.
-- **How**: With the embedded SDL child focused, Windows routes mouse and
-  unmapped keyboard events directly to QEMU. A focused low-level keyboard
-  hook intercepts mapped keys only while the QEMU child owns focus. The Qt
-  event filter handles keys delivered to the Qt display widget, and mouse
+- **How**: Windows routes native mouse events to the embedded SDL child.
+  While that child owns focus, a low-level keyboard hook sends mapped actions
+  and ordinary keyboard press/release events through its controller's QMP
+  connection. Ordinary typing works with keymaps disabled and does not depend
+  on SDL receiving keyboard messages after reparenting. Successfully forwarded
+  keys are consumed to avoid duplicates. Key-up reaches every handler owning
+  the key, including after switching guests; host dialogs retain normal typing.
+  The Qt event filter handles keys delivered to the Qt display widget, and mouse
   events use QMP when delivered there. Touch coordinates are sent as QMP
   absolute axes and button events.
 
@@ -355,6 +359,10 @@ Physical key → InputHandler → KeymapEngine
   duplicate launch and running-disk protection. See [Phase 5 checks](PHASE-5-TESTING.md) and [camera findings](CAMERA.md).
 - `test_phase5_ui.cpp`: offscreen tests for settings controls, Save/Cancel, conflict warnings,
   launcher disk-operation buttons, and confirmation dialogs using isolated temporary instances.
+- `test_native_keyboard.cpp`: Windows desktop regression using two foreign native process windows
+  and QMP protocol fixtures. Checks typing with keymaps disabled, focused-guest isolation,
+  XT press/release events, modifier release after switching, and host edit controls.
+  It does not boot a guest or require WHPX, but does require an interactive Windows desktop.
 
 Runtime storage is `instances/<name>/config.json` and `overlay.qcow2`, with locks in the instances root.
 Imported default overlays retain their original backing metadata; their config's baseImage specifies the reset base.
@@ -366,7 +374,7 @@ Both top-level adbHostPort and network.adbHostPort are saved consistently for ea
 |---|---|---|
 | Hypervisor | WHPX (Hyper-V) | HAXM is deprecated; WHPX works on Win10/11 with Hyper-V |
 | Display backend | Win32 SetParent with SDL/OpenGL | Reuses the existing QEMU display and avoids framebuffer copies; VNC is the fallback if reparenting is unstable |
-| Input method | Native SDL input, a focused low-level hook, and QMP | Native child input stays direct; the hook intercepts mapped keys; QMP sends mapped actions |
+| Input method | Native SDL mouse input and focused keyboard forwarding over QMP | Keyboard forwarding covers ordinary keys and mapped actions without relying on SDL's reparented keyboard path |
 | Keymap profiles | JSON files beside the app | Users and later settings UI can change bindings without rebuilding the engine |
 | Disk format | qcow2 overlay | Copy-on-write enables multi-instance + factory reset |
 | App store | F-Droid | Legal alternative to Play Store |

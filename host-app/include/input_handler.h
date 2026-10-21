@@ -44,6 +44,8 @@ public:
 
     /** Dispatch a Windows low-level keyboard event when the QEMU child has focus. */
     bool handleNativeKeyEvent(int virtualKey, bool down);
+    /** Route a native keyboard event to the focused guest and release all owners on key-up. */
+    static bool dispatchNativeKeyEvent(int virtualKey, bool down);
 
     /** Convert a widget coordinate to QMP's 0..32767 absolute range. */
     static int scaleToQmpAxis(int coordinate, int extent);

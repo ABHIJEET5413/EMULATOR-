@@ -109,6 +109,8 @@ Qt::Key keyFromVirtualKey(const UINT virtualKey)
     case VK_SNAPSHOT: return Qt::Key_Print;
     case VK_PAUSE: return Qt::Key_Pause;
     case VK_APPS: return Qt::Key_Menu;
+    case VK_LWIN:
+    case VK_RWIN: return Qt::Key_Meta;
     case VK_OEM_MINUS: return Qt::Key_Minus;
     case VK_OEM_PLUS: return Qt::Key_Equal;
     case VK_OEM_4: return Qt::Key_BracketLeft;
@@ -132,11 +134,7 @@ LRESULT CALLBACK keyboardHookProc(const int code, const WPARAM message, const LP
             || message == WM_KEYUP || message == WM_SYSKEYUP)) {
         const auto* keyData = reinterpret_cast<const KBDLLHOOKSTRUCT*>(data);
         const bool down = message == WM_KEYDOWN || message == WM_SYSKEYDOWN;
-        for (const QPointer<InputHandler>& handler : std::as_const(g_keyboardHandlers)) {
-            if (handler && handler->handleNativeKeyEvent(keyData->vkCode, down)) {
-                return 1;
-            }
-        }
+        if (InputHandler::dispatchNativeKeyEvent(keyData->vkCode, down)) return 1;
     }
     return CallNextHookEx(g_keyboardHook, code, message, data);
 }
@@ -394,12 +392,13 @@ bool InputHandler::sendKeyToGuest(const Qt::Key key, const bool down)
         return false;
     }
 
-    if (down) {
+    const bool sent = sendInputEvents({keyEvent(keyCode, down)});
+    if (down && sent) {
         m_pressedKeys.insert(keyCode);
-    } else {
+    } else if (!down) {
         m_pressedKeys.remove(keyCode);
     }
-    return sendInputEvents({keyEvent(keyCode, down)});
+    return sent;
 }
 
 bool InputHandler::handleNativeKeyEvent(const int virtualKey, const bool down)
@@ -414,11 +413,42 @@ bool InputHandler::handleNativeKeyEvent(const int virtualKey, const bool down)
         if (m_keymapEngine.handleKeyRelease(key)) {
             return true;
         }
+        const int code = keyCodeForQtKey(static_cast<int>(key));
+        if (m_pressedKeys.contains(code)) {
+            sendKeyToGuest(key, false);
+            return true;
+        }
+        return false;
     }
-    if (down && isEmbeddedDisplayFocused()) {
-        return m_keymapEngine.handleKeyPress(key);
+    if (!isEmbeddedDisplayFocused()) return false;
+    if (m_keymapEngine.handleKeyPress(key)) return true;
+    // Reparented SDL windows cannot be relied on to receive Windows keyboard
+    // messages. Use the focused guest's QMP path even when keymaps are disabled,
+    // and consume successful forwards so SDL cannot deliver a second copy.
+    if (sendKeyToGuest(key, true)) {
+        return true;
     }
     return false;
+#else
+    Q_UNUSED(virtualKey)
+    Q_UNUSED(down)
+    return false;
+#endif
+}
+
+bool InputHandler::dispatchNativeKeyEvent(int virtualKey, bool down)
+{
+#ifdef Q_OS_WIN
+    bool consumed = false;
+    for (const QPointer<InputHandler>& handler : std::as_const(g_keyboardHandlers)) {
+        if (handler && handler->handleNativeKeyEvent(virtualKey, down)) {
+            consumed = true;
+            // Focus can move while a key is held or repeating. Release every
+            // guest that owns it, even when the first handler consumes key-up.
+            if (down) break;
+        }
+    }
+    return consumed;
 #else
     Q_UNUSED(virtualKey)
     Q_UNUSED(down)
