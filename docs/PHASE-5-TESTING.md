@@ -2,8 +2,19 @@
 
 ## Verification performed (2026-10-21)
 
+- Acceptance rerun: Release build succeeded; all **six** CTest suites passed three consecutive runs
+  after adding `phase5_ui`. No production code changes were needed for these tests.
+- The new offscreen widget test exercises Create/Clone/Delete/Reset through actual launcher buttons,
+  all six resolution presets, all four DPI values, host CPU/RAM widget limits, Save/Cancel,
+  duplicate-port warning dialogs, disabled running-port controls, and None/experimental camera controls.
+- Confirmed canceled Delete/Reset preserve the original disk hash and configuration; confirmed reset
+  clears a guest-sector marker and confirmed deletion preserves the other instance.
+- Reran both live WHPX guests to Ready and verified their independent ADB connections and display overrides.
+- Native keyboard focus isolation remains unverified: Windows accepted automated keystroke injection,
+  but the guest search field did not change. This does not establish whether physical keyboard input fails;
+  direct user verification has been requested before claiming every interactive check passed.
 - Release build succeeded with Qt 6.12 / MSVC 2022.
-- All five CTest suites passed three consecutive runs (`--repeat until-fail:3`), including Phase 1-4 regressions.
+- The initial five CTest suites also passed three consecutive runs (`--repeat until-fail:3`), including Phase 1-4 regressions.
 - Real qcow2 tests verified cloned guest-sector data and internal snapshots, reset clearing data,
   deletion, unsafe names, host limits, port conflicts, and failure preserving the original disk.
 - Separate processes verified running-lock exclusion and acquisition after release.
@@ -34,6 +45,8 @@ ctest --test-dir build -C Release --output-on-failure
 Adjust the Qt prefix to the installed dynamic Qt kit. Close DroidBox normally before rebuilding its executable.
 Each app process logs to `%LOCALAPPDATA%/DroidBox/DroidBox/droidbox-<pid>.log`, preventing interleaved writes across processes.
 `test_instance_manager` uses temporary 16 MB qcow2 images and the bundled `qemu-img`/`qemu-io`; it does not erase user instances.
+`test_phase5_ui` tests real Qt controls with `QT_QPA_PLATFORM=offscreen` and isolated temporary instance directories.
+Its Create-button check requires the provisioned base below; no user instances are cloned, reset, or deleted.
 
 ## Prepare the base for fresh instances
 

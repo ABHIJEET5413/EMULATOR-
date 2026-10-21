@@ -72,3 +72,8 @@ verify the Android image, toolbar dialogs, or native window drag and drop.
 clone data preservation, factory reset, safe names, cross-process-compatible locks, host limits, and port conflicts.
 It is registered as `instance_manager` in CTest. Full build, hardware commands, and manual acceptance:
 [Phase 5 testing](../docs/PHASE-5-TESTING.md).
+
+`test_phase5_ui.exe` tests actual Qt settings and launcher controls with the offscreen platform plugin,
+including all display presets, performance limits, port warnings, camera controls, and confirmed/canceled disk operations.
+It is registered as `phase5_ui`; the Create-button case requires `vm/images/bliss-provisioned.qcow2`.
+All disk mutations in this harness use isolated temporary instance directories.

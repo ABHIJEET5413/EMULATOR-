@@ -353,6 +353,8 @@ Physical key → InputHandler → KeymapEngine
   A locally authorized development base is kept out of Git and must not be distributed.
 - `test_instance_manager.cpp`: real qcow2 CRUD/data preservation, reset, validation, port occupancy,
   duplicate launch and running-disk protection. See [Phase 5 checks](PHASE-5-TESTING.md) and [camera findings](CAMERA.md).
+- `test_phase5_ui.cpp`: offscreen tests for settings controls, Save/Cancel, conflict warnings,
+  launcher disk-operation buttons, and confirmation dialogs using isolated temporary instances.
 
 Runtime storage is `instances/<name>/config.json` and `overlay.qcow2`, with locks in the instances root.
 Imported default overlays retain their original backing metadata; their config's baseImage specifies the reset base.

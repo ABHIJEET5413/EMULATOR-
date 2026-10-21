@@ -75,3 +75,12 @@ add_test(NAME instance_manager COMMAND test_instance_manager)
 set_tests_properties(instance_manager PROPERTIES
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
 )
+
+add_executable(test_phase5_ui test_phase5_ui.cpp)
+target_link_libraries(test_phase5_ui PRIVATE droidbox_core)
+add_test(NAME phase5_ui COMMAND test_phase5_ui)
+set_tests_properties(phase5_ui PROPERTIES
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    TIMEOUT 90
+)
