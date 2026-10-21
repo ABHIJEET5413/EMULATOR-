@@ -3,7 +3,11 @@
 #include <QObject>
 #include <QJsonArray>
 #include <QPointer>
+#include <QSize>
 #include <QSet>
+#include <QString>
+
+#include "keymap_engine.h"
 
 class QEvent;
 class QKeyEvent;
@@ -21,9 +25,25 @@ class InputHandler final : public QObject {
 public:
     /** Create an input filter. */
     explicit InputHandler(QObject* parent = nullptr);
+    ~InputHandler() override;
 
     /** Install this handler on the display widget and connect it to QEMU. */
     void installOn(QWidget* displayWidget, QemuController* controller);
+
+    /** Load a JSON profile into the keymap engine. */
+    bool loadKeymapProfile(const QString& path, QString* errorMessage = nullptr);
+
+    /** Enable or disable key mapping. */
+    void setKeymapEnabled(bool enabled);
+
+    /** Return whether key mapping is enabled. */
+    bool isKeymapEnabled() const;
+
+    /** Set the guest resolution used to scale keymap coordinates. */
+    void setGuestResolution(QSize resolution);
+
+    /** Dispatch a Windows low-level keyboard event when the QEMU child has focus. */
+    bool handleNativeKeyEvent(int virtualKey, bool down);
 
     /** Convert a widget coordinate to QMP's 0..32767 absolute range. */
     static int scaleToQmpAxis(int coordinate, int extent);
@@ -38,11 +58,16 @@ protected:
 private:
     bool handleMouseEvent(QMouseEvent* event);
     bool handleKeyEvent(QKeyEvent* event, bool down);
+    bool sendKeyToGuest(Qt::Key key, bool down);
+    void sendTouchPosition(int x, int y, bool down);
+    void sendTouchMove(int x, int y);
     void releaseHeldInput();
+    bool isEmbeddedDisplayFocused() const;
     bool sendInputEvents(const QJsonArray& events);
 
     QPointer<QWidget> m_displayWidget;
     QPointer<QemuController> m_controller;
+    KeymapEngine m_keymapEngine;
     QSet<int> m_pressedButtons;
     QSet<int> m_pressedKeys;
 };

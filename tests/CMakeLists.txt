@@ -17,3 +17,20 @@ target_link_libraries(test_display_input
         droidbox_core
         Qt6::Core
 )
+
+add_executable(test_keymap
+    test_keymap.cpp
+)
+
+target_link_libraries(test_keymap
+    PRIVATE
+        droidbox_core
+        Qt6::Core
+)
+
+add_custom_command(TARGET test_keymap POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_CURRENT_SOURCE_DIR}/../host-app/resources/keymaps"
+        "$<TARGET_FILE_DIR:test_keymap>/keymaps"
+    COMMENT "Copying keymap profiles for the test harness"
+)

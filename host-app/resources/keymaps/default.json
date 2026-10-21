@@ -1,0 +1,34 @@
+{
+  "name": "Default",
+  "description": "Default keyboard passthrough bindings.",
+  "version": 1,
+  "resolution": {
+    "width": 1080,
+    "height": 1920
+  },
+  "bindings": [
+    {
+      "key": "Escape",
+      "action": "passthrough",
+      "description": "Pass Escape to Android."
+    },
+    {
+      "key": "Enter",
+      "action": "passthrough",
+      "description": "Pass Enter to Android."
+    },
+    {
+      "key": "Backspace",
+      "action": "passthrough",
+      "description": "Pass Backspace to Android."
+    }
+  ],
+  "mousemap": {
+    "enabled": false,
+    "mode": "aim",
+    "sensitivity": 1.0,
+    "centerX": 540,
+    "centerY": 960,
+    "description": "Mouse mapping is disabled by default."
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "name": "WASD Gaming",
+  "description": "WASD movement with common action buttons.",
+  "version": 1,
+  "resolution": {
+    "width": 1080,
+    "height": 1920
+  },
+  "bindings": [
+    {
+      "key": "W",
+      "action": "swipe",
+      "params": {
+        "startX": 540,
+        "startY": 1500,
+        "endX": 540,
+        "endY": 1260,
+        "durationMs": 120
+      },
+      "description": "Move forward."
+    },
+    {
+      "key": "A",
+      "action": "swipe",
+      "params": {
+        "startX": 540,
+        "startY": 1500,
+        "endX": 300,
+        "endY": 1500,
+        "durationMs": 120
+      },
+      "description": "Move left."
+    },
+    {
+      "key": "S",
+      "action": "swipe",
+      "params": {
+        "startX": 540,
+        "startY": 1500,
+        "endX": 540,
+        "endY": 1740,
+        "durationMs": 120
+      },
+      "description": "Move backward."
+    },
+    {
+      "key": "D",
+      "action": "swipe",
+      "params": {
+        "startX": 540,
+        "startY": 1500,
+        "endX": 780,
+        "endY": 1500,
+        "durationMs": 120
+      },
+      "description": "Move right."
+    },
+    {
+      "key": "Space",
+      "action": "tap",
+      "params": {
+        "x": 900,
+        "y": 1600
+      },
+      "description": "Jump."
+    },
+    {
+      "key": "F",
+      "action": "hold",
+      "params": {
+        "x": 800,
+        "y": 1200
+      },
+      "description": "Hold to interact."
+    },
+    {
+      "key": "E",
+      "action": "repeat_tap",
+      "params": {
+        "x": 850,
+        "y": 1300,
+        "intervalMs": 100
+      },
+      "description": "Repeat an interaction tap while held."
+    },
+    {
+      "key": "Escape",
+      "action": "passthrough",
+      "description": "Pass Escape to Android."
+    }
+  ],
+  "mousemap": {
+    "enabled": true,
+    "mode": "aim",
+    "sensitivity": 1.0,
+    "centerX": 540,
+    "centerY": 960,
+    "description": "Mouse aim metadata for a future pointer mode."
+  }
+}

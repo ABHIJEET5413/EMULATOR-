@@ -105,19 +105,35 @@ The main Windows application the user interacts with.
 - **Why**: User expects to use their mouse as a finger and their
   keyboard for typing inside Android.
 - **How**: With the embedded SDL child focused, Windows routes mouse and
-  keyboard events directly to QEMU, which passes absolute tablet input via
-  `usb-tablet` and keyboard input to Android. The Qt event filter also
-  forwards mouse and supported key events through QMP when events are
-  delivered to the Qt display widget instead of the native QEMU child.
+  unmapped keyboard events directly to QEMU. A focused low-level keyboard
+  hook intercepts mapped keys only while the QEMU child owns focus. The Qt
+  event filter handles keys delivered to the Qt display widget, and mouse
+  events use QMP when delivered there. Touch coordinates are sent as QMP
+  absolute axes and button events.
 
 #### 1.6 `KeymapEngine` (Phase 3)
-- **What**: Maps physical keyboard keys to screen tap/swipe positions.
-- **Why**: Gamers want WASD→d-pad, etc.
-- **How**: JSON profiles (`keymaps/*.json`) define key→action mappings.
-  Actions can be: tap at (x,y), swipe from (x1,y1) to (x2,y2), or
-  key passthrough.
+- **What**: Maps physical keyboard keys to guest touch actions.
+- **Why**: Games and other apps can use keyboard keys for touch controls.
+- **How**: `KeymapProfile` reads the documented JSON schema from
+  `resources/keymaps/*.json`. `KeymapEngine` scales profile coordinates to
+  the configured guest resolution and dispatches tap, hold, timed swipe,
+  repeat-tap, or passthrough actions. `InputHandler` routes key press and
+  release events through the engine first, then sends touch and passthrough
+  events with `QemuController::sendInputEvents()`. Hold and repeat timers
+  are stopped and released when keys are released or focus is lost. The
+  default and WASD gaming profiles are staged beside the executable.
 
-#### 1.7 `AdbBridge` (Phase 4)
+#### 1.7 `KeymapProfile` (Phase 3)
+- **What**: Data model for named key bindings, profile resolution, and
+  mouse-map metadata.
+- **Why**: Profiles can be loaded, validated, saved, and changed at runtime
+  without changing the input dispatch code.
+- **How**: JSON parsing rejects malformed documents and invalid action
+  parameters; missing optional fields use the guide's defaults. Key names
+  are converted to Qt keys, and profile coordinates are scaled before they
+  are normalized to QMP's absolute input range.
+
+#### 1.8 `AdbBridge` (Phase 4)
 - **What**: Manages ADB connection to the guest Android.
 - **Why**: ADB is required for APK install, file push, screenshots,
   and running shell commands inside the guest.
@@ -125,7 +141,7 @@ The main Windows application the user interacts with.
   guest via `adb connect localhost:<port>` (port forwarded by QEMU's
   `-netdev user,hostfwd=tcp::5555-:5555`).
 
-#### 1.8 `InstanceManager` (Phase 5)
+#### 1.9 `InstanceManager` (Phase 5)
 - **What**: Manages multiple Android instances.
 - **Why**: Users may want multiple instances (different apps, accounts).
 - **How**: Each instance = one JSON config + one qcow2 overlay.
@@ -133,7 +149,7 @@ The main Windows application the user interacts with.
   creates a copy-on-write overlay per instance. Factory reset =
   delete the overlay and create a new one.
 
-#### 1.9 `SettingsManager` (Phase 5)
+#### 1.10 `SettingsManager` (Phase 5)
 - **What**: Per-instance settings (CPU cores, RAM, resolution, DPI).
 - **Why**: Different apps need different resources.
 - **How**: JSON file per instance in `instances/<name>/config.json`.
@@ -197,8 +213,12 @@ The main Windows application the user interacts with.
   termination. It
   accepts `--config`, `--qemu-path`, `--test`, and `--timeout` options.
 - `CMakeLists.txt`: Builds the Phase 1 harness against `droidbox_core`.
-- Later phases add their own standalone harnesses for keymaps, ADB,
-  and instance management.
+- `test_display_input.cpp` (Phase 2): Checks display-coordinate scaling
+  and Qt-to-QMP key-code conversion.
+- `test_keymap.cpp` (Phase 3): Checks profile JSON parsing/saving, key
+  lookup, all five key actions, profile-to-guest coordinate scaling, and
+  profile enumeration.
+- Later phases add standalone harnesses for ADB and instance management.
 
 ---
 
@@ -240,9 +260,18 @@ Phase 1 CLI harness calls QemuController::start(config)
                 v
         With QEMU stopped, qemu-img saves/applies qcow2 disk snapshots;
         the restored disk is booted again
+```
 
 Phase 2+ connects the same controller to the GUI, display, input,
 and ADB modules.
+
+Phase 3 routes a key event through the active keymap profile first:
+
+```
+Physical key → InputHandler → KeymapEngine
+                    ├─ mapped action → scaled touch event → QMP
+                    ├─ passthrough binding → QMP key event
+                    └─ unmapped key → existing keyboard path
 ```
 
 ---
@@ -253,7 +282,8 @@ and ADB modules.
 |---|---|---|
 | Hypervisor | WHPX (Hyper-V) | HAXM is deprecated; WHPX works on Win10/11 with Hyper-V |
 | Display backend | Win32 SetParent with SDL/OpenGL | Reuses the existing QEMU display and avoids framebuffer copies; VNC is the fallback if reparenting is unstable |
-| Input method | Native SDL input plus QMP event forwarding | Native child-window input is direct; QMP handles events delivered to the Qt display widget |
+| Input method | Native SDL input, a focused low-level hook, and QMP | Native child input stays direct; the hook intercepts mapped keys; QMP sends mapped actions |
+| Keymap profiles | JSON files beside the app | Users and later settings UI can change bindings without rebuilding the engine |
 | Disk format | qcow2 overlay | Copy-on-write enables multi-instance + factory reset |
 | App store | F-Droid | Legal alternative to Play Store |
 | Installer | Inno Setup | Free, mature, widely trusted on Windows |

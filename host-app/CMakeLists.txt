@@ -16,11 +16,15 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/$<CONFIG>")
 add_library(droidbox_core STATIC
     include/display_embed.h
     include/input_handler.h
+    include/keymap_engine.h
+    include/keymap_profile.h
     include/main_window.h
     include/qemu_controller.h
     include/qmp_client.h
     src/display_embed.cpp
     src/input_handler.cpp
+    src/keymap_engine.cpp
+    src/keymap_profile.cpp
     src/main_window.cpp
     src/qemu_controller.cpp
     src/qmp_client.cpp
@@ -48,6 +52,13 @@ add_executable(DroidBox
 )
 
 target_link_libraries(DroidBox PRIVATE droidbox_core)
+
+add_custom_command(TARGET DroidBox POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_CURRENT_SOURCE_DIR}/resources/keymaps"
+        "$<TARGET_FILE_DIR:DroidBox>/resources/keymaps"
+    COMMENT "Copying bundled keymap profiles"
+)
 
 # Keep the CLI harness in tests/ while allowing the documented command
 # `cmake -S host-app` to configure both application and harness targets.

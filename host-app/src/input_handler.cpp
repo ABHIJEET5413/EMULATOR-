@@ -1,14 +1,26 @@
 #include <QEvent>
+#include <QCoreApplication>
+#include <QDir>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QKeyEvent>
 #include <QLoggingCategory>
 #include <QMouseEvent>
+#include <QList>
 #include <QWidget>
 
 #include "input_handler.h"
 #include "display_embed.h"
 #include "qemu_controller.h"
+
+#include <utility>
+
+#ifdef Q_OS_WIN
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <Windows.h>
+#endif
 
 namespace {
 
@@ -52,11 +64,112 @@ QJsonObject keyEvent(const int keyCode, const bool down)
                          {QStringLiteral("down"), down}}}};
 }
 
+#ifdef Q_OS_WIN
+QList<QPointer<InputHandler>> g_keyboardHandlers;
+HHOOK g_keyboardHook{nullptr};
+
+Qt::Key keyFromVirtualKey(const UINT virtualKey)
+{
+    if (virtualKey >= 'A' && virtualKey <= 'Z') {
+        return static_cast<Qt::Key>(Qt::Key_A + virtualKey - 'A');
+    }
+    if (virtualKey >= '0' && virtualKey <= '9') {
+        return static_cast<Qt::Key>(Qt::Key_0 + virtualKey - '0');
+    }
+    if (virtualKey >= VK_F1 && virtualKey <= VK_F12) {
+        return static_cast<Qt::Key>(Qt::Key_F1 + virtualKey - VK_F1);
+    }
+
+    switch (virtualKey) {
+    case VK_ESCAPE: return Qt::Key_Escape;
+    case VK_RETURN: return Qt::Key_Return;
+    case VK_SPACE: return Qt::Key_Space;
+    case VK_TAB: return Qt::Key_Tab;
+    case VK_BACK: return Qt::Key_Backspace;
+    case VK_DELETE: return Qt::Key_Delete;
+    case VK_INSERT: return Qt::Key_Insert;
+    case VK_HOME: return Qt::Key_Home;
+    case VK_END: return Qt::Key_End;
+    case VK_PRIOR: return Qt::Key_PageUp;
+    case VK_NEXT: return Qt::Key_PageDown;
+    case VK_UP: return Qt::Key_Up;
+    case VK_DOWN: return Qt::Key_Down;
+    case VK_LEFT: return Qt::Key_Left;
+    case VK_RIGHT: return Qt::Key_Right;
+    case VK_SHIFT:
+    case VK_LSHIFT:
+    case VK_RSHIFT: return Qt::Key_Shift;
+    case VK_CONTROL:
+    case VK_LCONTROL:
+    case VK_RCONTROL: return Qt::Key_Control;
+    case VK_MENU:
+    case VK_LMENU:
+    case VK_RMENU: return Qt::Key_Alt;
+    case VK_CAPITAL: return Qt::Key_CapsLock;
+    case VK_SNAPSHOT: return Qt::Key_Print;
+    case VK_PAUSE: return Qt::Key_Pause;
+    case VK_APPS: return Qt::Key_Menu;
+    case VK_OEM_MINUS: return Qt::Key_Minus;
+    case VK_OEM_PLUS: return Qt::Key_Equal;
+    case VK_OEM_4: return Qt::Key_BracketLeft;
+    case VK_OEM_6: return Qt::Key_BracketRight;
+    case VK_OEM_1: return Qt::Key_Semicolon;
+    case VK_OEM_7: return Qt::Key_Apostrophe;
+    case VK_OEM_3: return Qt::Key_QuoteLeft;
+    case VK_OEM_5:
+    case VK_OEM_102: return Qt::Key_Backslash;
+    case VK_OEM_COMMA: return Qt::Key_Comma;
+    case VK_OEM_PERIOD: return Qt::Key_Period;
+    case VK_OEM_2: return Qt::Key_Slash;
+    default: return Qt::Key_unknown;
+    }
+}
+
+LRESULT CALLBACK keyboardHookProc(const int code, const WPARAM message, const LPARAM data)
+{
+    if (code == HC_ACTION
+        && (message == WM_KEYDOWN || message == WM_SYSKEYDOWN
+            || message == WM_KEYUP || message == WM_SYSKEYUP)) {
+        const auto* keyData = reinterpret_cast<const KBDLLHOOKSTRUCT*>(data);
+        const bool down = message == WM_KEYDOWN || message == WM_SYSKEYDOWN;
+        for (const QPointer<InputHandler>& handler : std::as_const(g_keyboardHandlers)) {
+            if (handler && handler->handleNativeKeyEvent(keyData->vkCode, down)) {
+                return 1;
+            }
+        }
+    }
+    return CallNextHookEx(g_keyboardHook, code, message, data);
+}
+#endif
+
 } // namespace
 
 InputHandler::InputHandler(QObject* parent)
     : QObject(parent)
 {
+    connect(&m_keymapEngine, &KeymapEngine::touchDown,
+            this, [this](const int x, const int y) {
+                sendTouchPosition(x, y, true);
+            });
+    connect(&m_keymapEngine, &KeymapEngine::touchUp,
+            this, [this](const int x, const int y) {
+                sendTouchPosition(x, y, false);
+            });
+    connect(&m_keymapEngine, &KeymapEngine::touchMove,
+            this, &InputHandler::sendTouchMove);
+    connect(&m_keymapEngine, &KeymapEngine::keyPassthrough,
+            this, &InputHandler::sendKeyToGuest);
+}
+
+InputHandler::~InputHandler()
+{
+#ifdef Q_OS_WIN
+    g_keyboardHandlers.removeAll(this);
+    if (g_keyboardHandlers.isEmpty() && g_keyboardHook) {
+        UnhookWindowsHookEx(g_keyboardHook);
+        g_keyboardHook = nullptr;
+    }
+#endif
 }
 
 void InputHandler::installOn(QWidget* displayWidget, QemuController* controller)
@@ -71,6 +184,54 @@ void InputHandler::installOn(QWidget* displayWidget, QemuController* controller)
         m_displayWidget->installEventFilter(this);
         m_displayWidget->setFocusPolicy(Qt::StrongFocus);
     }
+
+    if (!m_keymapEngine.activeProfile()) {
+        const QString defaultProfile = QDir(QCoreApplication::applicationDirPath())
+            .filePath(QStringLiteral("resources/keymaps/default.json"));
+        if (QFileInfo::exists(defaultProfile)) {
+            QString errorMessage;
+            if (!m_keymapEngine.loadProfile(defaultProfile, &errorMessage)) {
+                qWarning().noquote() << "Could not load the default keymap profile:" << errorMessage;
+            }
+        } else {
+            qWarning() << "The default keymap profile is missing:" << defaultProfile;
+        }
+    }
+
+#ifdef Q_OS_WIN
+    if (!g_keyboardHandlers.contains(this)) {
+        g_keyboardHandlers.append(this);
+    }
+    if (!g_keyboardHook) {
+        g_keyboardHook = SetWindowsHookExW(WH_KEYBOARD_LL,
+                                           keyboardHookProc,
+                                           GetModuleHandleW(nullptr),
+                                           0);
+        if (!g_keyboardHook) {
+            qWarning() << "Could not install the guest keymap keyboard hook.";
+        }
+    }
+#endif
+}
+
+bool InputHandler::loadKeymapProfile(const QString& path, QString* errorMessage)
+{
+    return m_keymapEngine.loadProfile(path, errorMessage);
+}
+
+void InputHandler::setKeymapEnabled(const bool enabled)
+{
+    m_keymapEngine.setEnabled(enabled);
+}
+
+bool InputHandler::isKeymapEnabled() const
+{
+    return m_keymapEngine.isEnabled();
+}
+
+void InputHandler::setGuestResolution(const QSize resolution)
+{
+    m_keymapEngine.setGuestResolution(resolution);
 }
 
 int InputHandler::scaleToQmpAxis(const int coordinate, const int extent)
@@ -156,6 +317,7 @@ bool InputHandler::eventFilter(QObject* watched, QEvent* event)
         }
         return false;
     case QEvent::FocusOut:
+        m_keymapEngine.releaseAll();
         releaseHeldInput();
         return false;
     case QEvent::MouseButtonPress:
@@ -203,11 +365,31 @@ bool InputHandler::handleMouseEvent(QMouseEvent* event)
 
 bool InputHandler::handleKeyEvent(QKeyEvent* event, const bool down)
 {
-    if (!event || !m_controller || event->isAutoRepeat()) {
+    if (!event) {
         return false;
     }
 
-    const int keyCode = keyCodeForQtKey(event->key());
+    const auto key = static_cast<Qt::Key>(event->key());
+    if (event->isAutoRepeat()) {
+        return m_keymapEngine.isEnabled() && m_keymapEngine.handleKeyPress(key);
+    }
+
+    if (down) {
+        if (m_keymapEngine.handleKeyPress(key)) {
+            return true;
+        }
+    } else if (m_keymapEngine.handleKeyRelease(key)) {
+        return true;
+    }
+    return sendKeyToGuest(key, down);
+}
+
+bool InputHandler::sendKeyToGuest(const Qt::Key key, const bool down)
+{
+    if (!m_controller) {
+        return false;
+    }
+    const int keyCode = keyCodeForQtKey(static_cast<int>(key));
     if (keyCode < 0) {
         return false;
     }
@@ -218,6 +400,87 @@ bool InputHandler::handleKeyEvent(QKeyEvent* event, const bool down)
         m_pressedKeys.remove(keyCode);
     }
     return sendInputEvents({keyEvent(keyCode, down)});
+}
+
+bool InputHandler::handleNativeKeyEvent(const int virtualKey, const bool down)
+{
+#ifdef Q_OS_WIN
+    const Qt::Key key = keyFromVirtualKey(static_cast<UINT>(virtualKey));
+    if (key == Qt::Key_unknown) {
+        return false;
+    }
+    if (!down) {
+        // A mapped hold must be released even if focus moved after key-down.
+        if (m_keymapEngine.handleKeyRelease(key)) {
+            return true;
+        }
+    }
+    if (down && isEmbeddedDisplayFocused()) {
+        return m_keymapEngine.handleKeyPress(key);
+    }
+    return false;
+#else
+    Q_UNUSED(virtualKey)
+    Q_UNUSED(down)
+    return false;
+#endif
+}
+
+bool InputHandler::isEmbeddedDisplayFocused() const
+{
+#ifdef Q_OS_WIN
+    const auto* display = qobject_cast<const DisplayEmbed*>(m_displayWidget.data());
+    if (!display || !display->hasEmbeddedWindow()) {
+        return false;
+    }
+    const HWND qemuWindow = reinterpret_cast<HWND>(display->embeddedWindow());
+    if (!IsWindow(qemuWindow)) {
+        return false;
+    }
+
+    const HWND foregroundWindow = GetForegroundWindow();
+    if (GetAncestor(foregroundWindow, GA_ROOT)
+        != GetAncestor(qemuWindow, GA_ROOT)) {
+        return false;
+    }
+
+    GUITHREADINFO threadInfo{};
+    threadInfo.cbSize = sizeof(threadInfo);
+    const DWORD threadId = GetWindowThreadProcessId(qemuWindow, nullptr);
+    if (!threadId || !GetGUIThreadInfo(threadId, &threadInfo)) {
+        return false;
+    }
+    return threadInfo.hwndFocus == qemuWindow
+        || IsChild(qemuWindow, threadInfo.hwndFocus);
+#else
+    return false;
+#endif
+}
+
+void InputHandler::sendTouchPosition(const int x, const int y, const bool down)
+{
+    const QSize resolution = m_keymapEngine.guestResolution();
+    const int xExtent = resolution.width() > 0 ? resolution.width()
+                                               : (m_displayWidget ? m_displayWidget->width() : 1);
+    const int yExtent = resolution.height() > 0 ? resolution.height()
+                                                 : (m_displayWidget ? m_displayWidget->height() : 1);
+    QJsonArray events{
+        absoluteAxisEvent(QStringLiteral("x"), scaleToQmpAxis(x, xExtent)),
+        absoluteAxisEvent(QStringLiteral("y"), scaleToQmpAxis(y, yExtent)),
+        buttonEvent(QStringLiteral("left"), down)
+    };
+    sendInputEvents(events);
+}
+
+void InputHandler::sendTouchMove(const int x, const int y)
+{
+    const QSize resolution = m_keymapEngine.guestResolution();
+    const int xExtent = resolution.width() > 0 ? resolution.width()
+                                               : (m_displayWidget ? m_displayWidget->width() : 1);
+    const int yExtent = resolution.height() > 0 ? resolution.height()
+                                                 : (m_displayWidget ? m_displayWidget->height() : 1);
+    sendInputEvents({absoluteAxisEvent(QStringLiteral("x"), scaleToQmpAxis(x, xExtent)),
+                     absoluteAxisEvent(QStringLiteral("y"), scaleToQmpAxis(y, yExtent))});
 }
 
 void InputHandler::releaseHeldInput()
@@ -239,5 +502,6 @@ void InputHandler::releaseHeldInput()
 
 bool InputHandler::sendInputEvents(const QJsonArray& events)
 {
-    return m_controller && !m_controller->sendInputEvents(events).isEmpty();
+    return m_controller && !events.isEmpty()
+        && !m_controller->sendInputEvents(events).isEmpty();
 }
