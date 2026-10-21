@@ -1,0 +1,239 @@
+DroidBox clean-PC acceptance checklist
+======================================
+
+Purpose
+-------
+Use this checklist on a different Windows 10/11 x64 PC, a clean Windows VM,
+or a new Windows user account that has never run DroidBox. It verifies that
+the offline installer works without development tools, existing Android data,
+or a previously-authorized ADB key.
+
+Do not copy DroidBox, QEMU, ADB, Qt, Android images, or the development folder
+onto the test machine. Copy only the final DroidBoxSetup.exe using a USB drive.
+Keep the test machine disconnected from the internet until Section 7 is done.
+
+What to bring
+-------------
+1. DroidBoxSetup.exe built from the release candidate.
+2. Its SHA-256 value from the release notes.
+3. One small APK whose installation you are allowed to test.
+4. One small non-APK file, such as a .jpg or .txt file.
+5. This file.
+
+Before beginning
+----------------
+1. Sign in with a Windows administrator account, or an account that can enter
+   administrator credentials when Windows asks.
+2. Confirm the PC is Windows 10 version 1809 or later, or Windows 11, x64.
+3. Enable CPU virtualization in BIOS/UEFI if it is disabled:
+   - Intel systems: Intel Virtualization Technology / VT-x.
+   - AMD systems: SVM Mode / AMD-V.
+4. Disconnect Wi-Fi and Ethernet.
+5. Open an elevated PowerShell and run:
+
+   Get-WindowsOptionalFeature -Online -FeatureName HypervisorPlatform
+
+   Record whether the state is Enabled or Disabled. Do not enable it yet if
+   you want to test the installer's enablement path in Section 3.
+
+6. Confirm no prior DroidBox data exists:
+
+   Test-Path "$env:LOCALAPPDATA\DroidBox\DroidBox"
+   Test-Path "${env:ProgramFiles}\DroidBox"
+   Test-Path "${env:LOCALAPPDATA}\DroidBoxAcceptance"
+
+   Expected result: False for all paths. If any are True, use another clean
+   Windows user account or VM snapshot.
+
+7. Confirm ADB has no old authorization data:
+
+   Test-Path "$env:USERPROFILE\.android\adbkey"
+
+   Expected result: False. If it is True, use another clean Windows account or
+   VM snapshot. Do not delete a real user's key just to run this test.
+
+Test case 1: Installer integrity
+--------------------------------
+1. Copy only DroidBoxSetup.exe from USB to a temporary folder.
+2. In PowerShell, calculate its hash:
+
+   Get-FileHash "C:\path\to\DroidBoxSetup.exe" -Algorithm SHA256
+
+3. Compare it with the release-candidate hash.
+
+Pass: The hashes match exactly.
+Fail: Stop. Do not install the file; obtain a fresh copy.
+
+Test case 2: Offline installation
+---------------------------------
+1. Keep the PC offline.
+2. Run DroidBoxSetup.exe normally.
+3. Read and accept the license screen.
+4. Choose an installation directory containing spaces, for example:
+
+   C:\Program Files\DroidBox Test
+
+5. Leave the Start Menu shortcut, Desktop shortcut, and APK association options
+   selected.
+6. Record whether Windows asks for elevation and whether the installer reports
+   missing WHPX or a reboot requirement.
+
+Pass: Installation completes without downloading anything or reporting missing
+runtime files.
+Fail: Save a screenshot and the installer log if shown. Do not retry repeatedly;
+record the first failure.
+
+Test case 3: WHPX behavior
+--------------------------
+Run the branch that matches the state recorded before installation.
+
+A. HypervisorPlatform was Enabled
+   1. The installer should recognize that acceleration is ready.
+   2. No reboot should be required solely for WHPX.
+
+B. HypervisorPlatform was Disabled
+   1. Confirm the installer explains that Windows Hypervisor Platform is needed.
+   2. Select its option to enable the feature.
+   3. Let the installer finish.
+   4. Restart Windows if the installer says a restart is required.
+   5. After restart, run this elevated command:
+
+      Get-WindowsOptionalFeature -Online -FeatureName HypervisorPlatform
+
+   Expected result: State : Enabled.
+
+6. On either branch, run the installed check in elevated PowerShell:
+
+   powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Program Files\DroidBox Test\check_whpx.ps1" -Probe -QemuPath "C:\Program Files\DroidBox Test\vm\qemu\qemu-system-x86_64.exe"
+
+Pass: The script reports Ready, probePassed=true, and exit code 0.
+Fail: Record the complete command output. For firmware-disabled results, enable
+VT-x/AMD-V in BIOS/UEFI and run the check once more after restart.
+
+Test case 4: Installed file layout
+----------------------------------
+Check that these files exist under the chosen installation directory:
+
+1. DroidBox.exe
+2. Qt6Core.dll, Qt6Gui.dll, Qt6Widgets.dll, and platforms\qwindows.dll
+3. vm\qemu\qemu-system-x86_64.exe and vm\qemu\qemu-img.exe
+4. vm\adb\adb.exe
+5. vm\images\bliss-provisioned.qcow2
+6. licenses directory and source/notices directory
+
+Also confirm the default user data was created:
+
+   Get-ChildItem "$env:LOCALAPPDATA\DroidBox\DroidBox\instances\default" -Force
+
+Pass: config.json and overlay.qcow2 are present for the signed-in user.
+
+Test case 5: First launch and RSA authorization
+------------------------------------------------
+1. Start DroidBox from the Start Menu shortcut.
+2. Confirm the QEMU display appears inside the DroidBox window.
+3. Wait for Android to reach its first screen or Home screen.
+4. When Android displays "Allow USB debugging?", choose Allow.
+   Do not share or copy an ADB private key from another PC.
+5. Wait until the app reports readiness.
+6. Open a PowerShell in the installed vm\adb directory and run:
+
+   .\adb.exe devices -l
+   .\adb.exe -s localhost:5555 get-state
+   .\adb.exe -s localhost:5555 shell getprop sys.boot_completed
+   .\adb.exe -s localhost:5555 shell getprop ro.build.version.release
+
+   If the instance uses a different port, replace 5555 with the configured
+   adbHostPort from its config.json.
+
+Pass: devices shows localhost:<port> as "device", boot_completed returns 1,
+and Android Home is visible.
+Fail: Capture the DroidBox window, Android screen, and the last 50 lines from:
+
+   Get-Content "$env:LOCALAPPDATA\DroidBox\DroidBox\droidbox-*.log" -Tail 50
+
+Test case 6: Basic user actions
+-------------------------------
+With Android running:
+
+1. Click Home, Back, Recents, Volume Up, and Volume Down in the toolbar.
+2. Take a screenshot using the toolbar and confirm the PNG opens correctly.
+3. Drag the test APK into the DroidBox window, or use Install APK.
+4. Confirm the APK installation reports success in Android.
+5. Drag the non-APK file into the window.
+6. In Android, open Downloads or Gallery and verify the file arrived.
+7. Close DroidBox and verify QEMU exits cleanly.
+
+Pass: Each action affects the guest as expected; no host application crash.
+
+Test case 7: Offline proof
+--------------------------
+Only after Test cases 1 through 6 pass:
+
+1. Confirm Wi-Fi and Ethernet are still disconnected.
+2. Reboot Windows.
+3. Start DroidBox again from its shortcut.
+4. Verify it reaches Android Home and ADB is still usable.
+
+Pass: Android starts without a network connection and without downloads.
+
+Test case 8: Upgrade retention
+------------------------------
+This test needs a second newer installer build.
+
+1. Install the older build and boot Android.
+2. Install a recognizable test APK and create a simple file in Download.
+3. Close DroidBox completely.
+4. Install the newer build into the same directory.
+5. Start DroidBox and verify the APK and Download file remain.
+6. Confirm the default instance config still contains the intended RAM, CPU,
+   display, and port settings.
+
+Pass: The guest starts, the installed app and file remain, and settings remain.
+
+Test case 9: Uninstall behavior
+--------------------------------
+1. Close DroidBox and confirm qemu-system-x86_64.exe is no longer running.
+2. Use Apps & Features or the Start Menu uninstaller.
+3. When asked whether to keep Android data, choose Keep.
+4. Confirm the program files, shortcuts, and DroidBox APK association are removed.
+5. Confirm the signed-in user's LocalAppData DroidBox data remains.
+6. Reinstall DroidBox and verify the retained instance can boot.
+7. Repeat uninstall in a test-only environment and choose Delete data.
+8. Confirm only this Windows user's DroidBox data is deleted.
+
+Pass: Keep preserves guest data; Delete removes only the current user's data.
+
+What to send back to Codex
+--------------------------
+Send these results as text and attach screenshots for any failure:
+
+1. Windows version and CPU model.
+2. Whether HypervisorPlatform was initially Enabled or Disabled.
+3. Whether the installer enabled WHPX, required a reboot, or failed.
+4. The SHA-256 you verified for DroidBoxSetup.exe.
+5. Whether Start Menu, Desktop, and APK association worked.
+6. The exact output of:
+
+   .\adb.exe devices -l
+   .\adb.exe -s localhost:5555 shell getprop sys.boot_completed
+
+7. Whether the Android RSA prompt appeared and whether Allow worked.
+8. Whether Android Home appeared offline.
+9. The result of APK install, file drop, screenshot, and navigation buttons.
+10. The result of upgrade and uninstall tests, if performed.
+11. For any failure: the first error, a screenshot, and the final 50 DroidBox
+    log lines. Do not keep retrying the same failed connection; send the first
+    complete failure evidence so Codex can find the cause.
+
+Prompt for Codex on the test machine
+------------------------------------
+Paste this into Codex on the other PC after copying DroidBoxSetup.exe and this
+file there:
+
+"Use docs/CLEAN-PC-ACCEPTANCE.txt as the acceptance procedure for DroidBox.
+Do not install development tools or copy ADB/QEMU/Android data from another PC.
+Run the checklist in order, keep the PC offline through Test case 7, and record
+every result. If something fails, inspect the root cause before retrying.
+Do not change project source files unless I explicitly ask you to fix a bug.
+At the end, give me a pass/fail table and include the exact logs and commands
+needed to reproduce every failure."
