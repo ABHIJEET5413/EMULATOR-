@@ -28,10 +28,28 @@ public redistribution readiness.
   Generated installer output is ignored by Git and is not part of the source
   repository.
 
+### Latest rebuilt installer run
+
+- The exact setup artifact above completed a silent install into
+  `%LOCALAPPDATA%\DroidBoxAcceptance\Final Install`, a path containing spaces.
+  Inno logged `Installation process succeeded`; the bundled WHPX check returned
+  exit code 0 (`Windows Hypervisor Platform is enabled`).
+- The installer initialized per-user DroidBox data, created the machine Start
+  Menu and Public Desktop shortcuts, and registered the `.apk` command to the
+  installed executable. The installed base image is 4,136,566,784 bytes and its
+  SHA-256 matches the bundle manifest.
+- Launching the installed app started the bundled QEMU binary and embedded its
+  display. ADB reached Android RSA authorization, but the latest run is still
+  awaiting confirmation in the guest; `sys.boot_completed=1` has not yet been
+  verified for this artifact.
+- This account already had DroidBox data from earlier testing, so this run does
+  not prove clean-account overlay initialization. The clean Windows/account
+  checks below remain outstanding.
+
 These checks were performed on one already-configured PC. They do not establish
 that installation works on a clean, disconnected Windows machine. The acceptance
-installer was removed after testing to recover disk space. A/B upgrade and
-retained user-data checks were not completed. Public redistribution remains
+installation is still present at the path above. A/B upgrade and retained
+user-data checks were not completed. Public redistribution remains
 blocked on completing the source, notices, and license inventory described in
 [installer/BUILD.md](../installer/BUILD.md).
 

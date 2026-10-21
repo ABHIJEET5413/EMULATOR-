@@ -16,14 +16,18 @@ Verification recorded on **21 October 2026**:
 - Installer preflight verified **3,399 staged file paths and SHA-256 hashes**.
 - Latest local Inno Setup output is **1,810,475,806 bytes**; SHA-256 and test scope are
   recorded in [Phase 6 test results](docs/PHASE-6-TESTING.md).
-- On this PC, a silent install to a path containing spaces booted Bliss to
-  Android Home; live ADB APK, file transfer, screenshot, and navigation checks passed.
+- The latest setup completed a silent install to a path containing spaces,
+  passed the installer WHPX check, and launched bundled QEMU with the display
+  embedded. Its guest is waiting for ADB authorization; the latest artifact's
+  Android Home state is not yet verified. Earlier live guest checks passed APK,
+  file transfer, screenshot, and navigation operations.
 - Previous live checks verified Android boot, ADB authorization, multiple guests,
   and keyboard input isolation. See the acceptance records linked below.
 
 **Still pending:** clean-machine offline installation, upgrade/data-retention
-acceptance, and the complete third-party source/notices review for public
-distribution. The local installer acceptance copy was removed after testing;
+acceptance, guest RSA authorization for the latest installer run, and the
+complete third-party source/notices review for public distribution. The latest
+installer acceptance copy remains installed under the local user's AppData;
 automated test results do not complete those checks.
 Webcam passthrough remains experimental and unverified; a test-pattern camera
 is unavailable in the bundled QEMU build.
