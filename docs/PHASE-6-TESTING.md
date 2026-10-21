@@ -5,11 +5,24 @@ certify installation, boot, or redistribution readiness. `tests/test_installer.p
 is a static packaging/payload preflight; it never installs software or changes
 Windows features. Run it explicitly when reviewing packaging.
 
+## Build record — 21 October 2026
+
+- Release host build: passed (MSVC 2022, Qt 6.12.0).
+- Payload staging and pinned file/source hash checks: passed.
+- Inno Setup 6.7.3: successful compile, exit 0.
+- Output: `installer/Output/DroidBoxSetup.exe`, **1,810,419,303 bytes**;
+  the output directory contains no external payload files.
+- SHA-256: `503b8ac190d848a0ce4b02495abcea2d02585702b696a4cde45cf6c74a84ddc1`.
+- The installer and automated suites were not run in this implementation pass.
+  Installation, WHPX runtime checks, Android boot and uninstall remain manual
+  acceptance items below. Public distribution still requires the source inventory
+  review in `installer/BUILD.md`; this build records `releaseReady=false`.
+
 ## Build/package
 
-- [ ] Release host builds with dynamic Qt.
-- [ ] Staging accepts the reviewed clean image and matching source archives.
-- [ ] One setup EXE is produced, with no external `.bin` files or downloads.
+- [x] Release host builds with dynamic Qt.
+- [x] Staging accepts the reviewed clean image and matching source archives.
+- [x] One setup EXE is produced, with no external `.bin` files or downloads.
 - [ ] License screen and installed full texts/notices/source offer are present.
 - [ ] Record setup SHA-256; complete the source inventory before public distribution.
 

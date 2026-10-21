@@ -27,5 +27,5 @@ $manifest | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $bundl
 if($LASTEXITCODE -ne 0){throw 'Inno Setup compilation failed.'}
 $output=Join-Path $installer 'Output\DroidBoxSetup.exe'
 if((Get-Item -LiteralPath $output).Length -ge 4294967296){throw 'The single EXE exceeds the Windows limit. Compact the image; do not enable disk spanning.'}
-Get-Item -LiteralPath $output | Select-Object FullName,Length
-Get-FileHash -LiteralPath $output -Algorithm SHA256
+Get-Item -LiteralPath $output | Format-List FullName,Length
+Get-FileHash -LiteralPath $output -Algorithm SHA256 | Format-List Algorithm,Hash,Path

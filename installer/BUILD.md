@@ -6,6 +6,8 @@ MSVC 2022, and Inno Setup 6.7.3.
 
 ## 1. Inputs
 
+- Target: Windows 10 1809 or later / Windows 11, x64, matching
+  [Qt 6.12's Windows support](https://doc.qt.io/qt-6.12/windows.html).
 - Visual Studio 2022 C++ x64, CMake, Git, dynamic Qt with `windeployqt`.
 - Inno Setup 6.x; installed here at `%LOCALAPPDATA%\Programs\InnoSetup6\ISCC.exe`.
 - `vm/qemu/`: tested Windows ar7 QEMU, `qemu-img.exe`, DLLs and firmware.
