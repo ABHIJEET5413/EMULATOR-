@@ -1,6 +1,8 @@
 # Phase 6 prerequisite fixes
 
-Verified locally on 2026-10-21. The offline installer itself has not been implemented.
+Prerequisite verification recorded on 2026-10-21. Installer implementation now
+lives in `installer/`; see [build instructions](../installer/BUILD.md) and the
+[Phase 6 acceptance checklist](PHASE-6-TESTING.md) for its current scope.
 
 ## Clean guest authorization
 
@@ -80,10 +82,11 @@ suites were not rerun in this prerequisite-fix task.
 - Review the optional Always allow choice, later boots, denial, and the three-minute timeout.
 - Confirm a factory-reset overlay starts without previously authorized host keys.
 
-## Installer work still required
+## Handoff to installer implementation
 
-Stage the clean image under the installed instance manager's expected
-`bliss-provisioned.qcow2` name, complete the dependency/submodule/firmware and
-guest license/source inventory, implement the approved installer plan, and run
-the clean-machine offline install/uninstall acceptance checklist. Identifying the
-exact QEMU source tree does not by itself complete the redistribution inventory.
+The installer now stages the clean image under the installed instance manager's
+`bliss-provisioned.qcow2` name and implements the approved packaging flow.
+Complete the dependency/submodule/firmware and guest license/source review before
+public distribution, and run the clean-machine install/uninstall checklist before
+acceptance. Identifying the exact QEMU source tree alone does not complete that
+redistribution inventory.

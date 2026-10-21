@@ -253,7 +253,12 @@ void MainWindow::startVm()
 {
     const QString configPath = m_instanceManager
         ? QDir(m_instanceManager->getInstanceDir(m_instanceName)).filePath("config.json") : findDefaultConfig();
-    if (m_instanceManager) m_launchConfig = m_instanceManager->getConfig(m_instanceName);
+    if (m_instanceManager) {
+        m_launchConfig = m_instanceManager->getConfig(m_instanceName);
+        // A preserved config can name the previous installation directory.
+        // Use the manager's current runtime path when loading the disk config.
+        m_qemuController.setQemuPath(m_launchConfig.value("qemuPath").toString());
+    }
     if (configPath.isEmpty()) {
         m_statusLabel->setText(QStringLiteral("Status: Configuration missing"));
         QMessageBox::critical(

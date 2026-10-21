@@ -9,6 +9,8 @@
 # Downloaded installers and source media
 /_downloads/
 /image-build/downloads/
+/installer/bundle/
+/installer/Output/
 
 # Bundled QEMU binaries and generated virtual disks
 /vm/qemu/

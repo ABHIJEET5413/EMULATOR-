@@ -1,0 +1,16 @@
+{
+  "qtVersion": "6.12.0",
+  "qemuVersionContains": "e470268ff4",
+  "adbVersionContains": "37.0.1",
+  "baseImageSha256": "f46bc32872303d8fa8abd1fc81d4558b7996fb23d4e49d19afe3ce2e838a090d",
+  "sources": [
+    { "component": "QEMU Windows fork", "file": "qemu-ar7-e470268ff446ec56728215a987ed166d5ed8fb64.verified.tar.gz", "sha256": "d917de0eab28e34c1e281a789b3a4c9878219bb54d7343cb4a07d33dbc79e660", "url": "https://repo.or.cz/qemu/ar7.git/commit/e470268ff446ec56728215a987ed166d5ed8fb64" },
+    { "component": "Qt Base", "file": "qtbase-025bdad181de241e81bf853c8a2d7bf3d19261a9.complete.tar.gz", "sha256": "5045b90abc04c9403aedb2e44e1c696bf047930a6a6ca49d7242a0c139453978", "url": "https://github.com/qt/qtbase/commit/025bdad181de241e81bf853c8a2d7bf3d19261a9" },
+    { "component": "Qt SVG", "file": "qtsvg-883a58532078d003cefef0a549bfe9f885ce41f5.tar.gz", "sha256": "a9f1f4d8b16ec54e2bbe96cfd2b5bcdaa153932275aa94fb76294c2d85ed3847", "url": "https://github.com/qt/qtsvg/commit/883a58532078d003cefef0a549bfe9f885ce41f5" }
+  ],
+  "remainingReleaseInventory": [
+    "QEMU dependency DLLs, firmware and required submodule sources/notices",
+    "Bliss kernel/build provenance and guest app/dependency source inventory",
+    "Complete Qt third-party and Microsoft runtime notices/redistribution terms"
+  ]
+}

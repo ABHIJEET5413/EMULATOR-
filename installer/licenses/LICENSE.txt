@@ -1,0 +1,65 @@
+DroidBox - license and source information
+=======================================
+
+DroidBox's original application and tooling are distributed under the MIT
+license below. Each bundled component retains its own license. This notice
+does not replace or restrict the rights granted by those licenses.
+
+Copyright (c) 2026 DroidBox contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+Included components
+-------------------
+* QEMU Windows fork: GPL version 2 and component-specific notices.
+  Full text: QEMU-LICENSE.txt; additional LGPL text: LGPL-2.1.txt.
+* Qt 6: dynamically linked LGPL version 3 libraries, with third-party notices.
+  Full text: QT-LICENSE.txt. You may replace Qt DLLs with compatible builds.
+  Nothing in this agreement restricts reverse engineering to debug changes
+  to these libraries or any other right granted by the LGPL.
+* Bliss OS / Android-x86: a collection of separately licensed components.
+  AOSP Apache 2.0 text: BLISS-LICENSE.txt. Linux and other GPL components
+  retain their own GPL terms. Bliss OS is not licensed only under Apache 2.0.
+* Neo Store (com.machiav3lli.fdroid): GPL version 3 or later.
+  Full GPLv3 text: FDROID-LICENSE.txt. This is an F-Droid repository client,
+  not the official F-Droid application.
+* Android Debug Bridge: Apache 2.0 and notices supplied with platform-tools.
+* microG compatibility components in the FOSS guest: Apache 2.0 and their
+  dependency notices. Proprietary Google Play/GApps are not supplied by
+  DroidBox's packaging scripts.
+* Microsoft Visual C++ Redistributable: Microsoft's separate software terms,
+  retained in the Microsoft package. MSVC-LICENSE.txt and the original DOCX
+  reproduce Microsoft's published Visual C++ 2015-2022 runtime terms; the
+  release inventory must retain the terms applicable to the exact package.
+
+Sources and offers
+------------------
+Read SOURCE-OFFER.txt and SOURCES.md, installed alongside this notice.
+Collected, pinned source archives and DroidBox's local image modifications
+are installed in the sources directory. Additional upstream notices and Qt
+SBOMs are in licenses/upstream. manifest.json lists payload hashes/versions
+and its release-inventory status.
+
+Development builds require the source/notices review described in BUILD.md
+before public redistribution. Inclusion of this license screen alone does
+not establish that an unreviewed development payload is ready to distribute.
+
+Project and source-request channel:
+https://github.com/HEARTLESS5413/EMULATOR-
+https://github.com/HEARTLESS5413/EMULATOR-/issues

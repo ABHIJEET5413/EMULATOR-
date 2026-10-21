@@ -23,7 +23,7 @@
 └───────────────────────────┼──────────────────────────────┘
                             │
               ┌─────────────▼──────────────┐
-              │          QEMU 8.x          │
+              │     QEMU 11.1.0 (ar7)     │
               │   -accel whpx  (Hyper-V)   │
               │   -device usb-tablet       │
               │   -netdev user,hostfwd     │
@@ -45,8 +45,9 @@
 The main Windows application the user interacts with.
 
 #### Entry point and logging (Phase 1)
-- `src/main.cpp` creates the Qt Widgets `QApplication` and `MainWindow`.
-- A Qt message handler writes timestamped messages to `droidbox.log`
+- `src/main.cpp` creates the Qt Widgets application and instance launcher.
+  Installer initialization uses `QCoreApplication` with `--initialize-only`.
+- A Qt message handler writes timestamped messages to `droidbox-<pid>.log`
   under the user's application-local data directory and to stderr.
 - The Phase 1 CLI test harness is the way to exercise VM controls; the
   desktop GUI is introduced in Phase 2.
@@ -184,19 +185,20 @@ The main Windows application the user interacts with.
   replacing the user's launcher choice. `provision-adb-image.sh` installs and
   labels both startup files in a new provisioned image.
 
-#### 1.9 `InstanceManager` (Phase 5, planned)
+#### 1.9 `InstanceManager` (Phase 5)
 - **What**: Manages multiple Android instances.
 - **Why**: Users may want multiple instances (different apps, accounts).
 - **How**: Each instance = one JSON config + one qcow2 overlay.
   The base image is read-only; `qemu-img create -f qcow2 -b base.qcow2`
-  creates a copy-on-write overlay per instance. Factory reset =
-  delete the overlay and create a new one.
+  creates a copy-on-write overlay per instance. Factory reset stages and
+  validates a replacement before replacing the stopped instance's overlay.
 
-#### 1.10 `SettingsManager` (Phase 5, planned)
+#### 1.10 `SettingsDialog` (Phase 5)
 - **What**: Per-instance settings (CPU cores, RAM, resolution, DPI).
 - **Why**: Different apps need different resources.
-- **How**: JSON file per instance in `instances/<name>/config.json`.
-  Settings are translated to QEMU command-line arguments.
+- **How**: Edits are validated and saved through `InstanceManager` to
+  `instances/<name>/config.json`. CPU/RAM/display settings apply on restart;
+  Android resolution and DPI are also applied through ADB after boot.
 
 ---
 
@@ -224,7 +226,7 @@ The main Windows application the user interacts with.
   4. Mount the installed image, apply config overlays:
      - Skip setup wizard (`provision.prop`).
      - Enable ADB over TCP on port 5555.
-     - Pre-install F-Droid APK.
+     - Pre-install the Neo Store F-Droid client.
      - Set default resolution/DPI.
   5. Convert to qcow2 with compression.
   6. This becomes the read-only base image.
@@ -238,13 +240,51 @@ The main Windows application the user interacts with.
 - **Bundles**:
   - `DroidBox.exe` + Qt DLLs (dynamic)
   - `qemu-system-x86_64.exe` + QEMU DLLs
-  - `bliss-base.qcow2` (compressed base image)
+  - `bliss-provisioned.qcow2` (clean, standalone distribution base)
   - `adb.exe` + platform-tools
   - MSVC runtime redistributable
   - License files + source offers
 - **Creates**: Start Menu shortcut, Desktop shortcut, `.apk`
   association, uninstaller.
 - **Startup check**: Runs WHPX detection, offers to enable if missing.
+
+#### Phase 6 implementation
+
+- `droidbox.iss`: one solid-compressed x64 offline EXE, full license screen,
+  shortcuts, quoted APK invocation and Open With registration. Its optional
+  machine association preserves the previous default; Windows UserChoice is not
+  overwritten. Runtime installation and original-user initialization are checked
+  for actual success. Reboot or acceleration failures suppress automatic launch.
+- `check_whpx.ps1`: firmware/hypervisor and Windows feature checks, optional
+  offline DISM enablement, explicit exit codes/JSON, and a diskless QEMU WHPX
+  startup probe. Errors are written to the installer log. No forced reboot.
+- `scripts/post-install.ps1`: invoked by `ExecAsOriginalUser`; runs the host's
+  `--initialize-only` mode to use the same atomic configuration, locking and port
+  allocation as the GUI, without starting Android.
+- Installed layout is marked by `installed-layout.json`, containing the reviewed
+  base SHA-256/size. The executable directory takes precedence over arbitrary
+  working directories. A new user atomically copies and hashes the base into
+  `AppLocalDataLocation/bases/<SHA-256>/bliss-provisioned.qcow2`; all new instance
+  overlays use that retained base. Older versions are preserved for existing
+  disks. Existing instances need no new base copy until a new instance is made.
+  Installed configurations resolve the current bundled QEMU path on reading, so
+  preserved data also works after a reinstall to another application directory.
+- `scripts/uninstall-data.ps1`: optional current-account cleanup, with fixed
+  path validation, reparse-point refusal and disk writer checks. No/silent
+  uninstall keeps both overlays and backing images. Other accounts are retained.
+- `scripts/prepare-bundle.ps1`: verifies pinned inputs, deploys dynamic Qt/plugins,
+  stages QEMU/ADB/runtime/firmware/keymaps and creates a per-file hash manifest.
+  Installer inputs/output are ignored by Git; only packaging sources are tracked.
+- `source-lock.json`, `licenses/`, and bundled `sources/`: full requested license
+  texts, exact core source archives, local changes and source-request offer.
+  `build-installer.ps1` verifies staged hashes and invokes Inno Setup. Public
+  distribution additionally requires a reviewed complete source inventory; the
+  default development installer does not pretend that review has happened.
+- `tests/test_installer.ps1`: static packaging and optional payload-hash preflight;
+  it does not replace clean-machine install/uninstall or guest boot acceptance.
+
+Build commands and installed layout: [installer/BUILD.md](../installer/BUILD.md).
+Manual acceptance: [PHASE-6-TESTING.md](PHASE-6-TESTING.md).
 
 ---
 
@@ -390,7 +430,7 @@ Both top-level adbHostPort and network.adbHostPort are saved consistently for ea
 | Input method | Native SDL mouse input and focused keyboard forwarding over QMP | Keyboard forwarding covers ordinary keys and mapped actions without relying on SDL's reparented keyboard path |
 | Keymap profiles | JSON files beside the app | Users and later settings UI can change bindings without rebuilding the engine |
 | Disk format | qcow2 overlay | Copy-on-write enables multi-instance + factory reset |
-| App store | F-Droid | Legal alternative to Play Store |
+| App store | Neo Store (F-Droid client) | Uses F-Droid repositories without Google Play |
 | Installer | Inno Setup | Free, mature, widely trusted on Windows |
 | Build system | CMake | Cross-IDE, Qt 6 native support |
 | Qt linking | Dynamic (LGPL) | Comply with Qt LGPL by dynamic linking |

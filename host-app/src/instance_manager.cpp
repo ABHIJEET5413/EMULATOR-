@@ -1,4 +1,5 @@
 #include <QCoreApplication>
+#include <QCryptographicHash>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -52,6 +53,9 @@ InstanceManager::InstanceManager(const QString& resourceRoot, const QString& ins
 QString InstanceManager::findResourceRoot()
 {
     const QString exe = QCoreApplication::applicationDirPath();
+    // Installed applications must not select an unrelated checkout from the
+    // working directory supplied by a shortcut or an APK file association.
+    if (QFileInfo::exists(QDir(exe).filePath("installed-layout.json"))) return exe;
     for (const QString& root : {QDir::currentPath(), exe, QDir(exe).filePath("../..")}) {
         if (QFileInfo::exists(QDir(root).filePath("vm/configs/default-instance.json"))
             && QFileInfo::exists(QDir(root).filePath("vm/qemu/qemu-img.exe")))
@@ -135,7 +139,10 @@ std::unique_ptr<QLockFile> InstanceManager::diskLock(const QString& name) const
 QJsonObject InstanceManager::getConfig(const QString& name) const
 {
     const QString dir = getInstanceDir(name);
-    return dir.isEmpty() ? QJsonObject{} : readObject(QDir(dir).filePath("config.json"));
+    auto config = dir.isEmpty() ? QJsonObject{} : readObject(QDir(dir).filePath("config.json"));
+    if (!config.isEmpty() && QFileInfo::exists(QDir(m_resourceRoot).filePath("installed-layout.json")))
+        config["qemuPath"] = QDir(m_resourceRoot).filePath("vm/qemu/qemu-system-x86_64.exe");
+    return config;
 }
 
 std::shared_ptr<void> InstanceManager::diskFileLock(const QString& name, bool deleting) const
@@ -275,12 +282,14 @@ bool InstanceManager::createOverlay(const QString& path, const QString& base)
 bool InstanceManager::initialize()
 {
     if (!listInstances().isEmpty()) return true;
+    if (QFileInfo::exists(QDir(m_resourceRoot).filePath("installed-layout.json"))
+        && preparedBaseImage().isEmpty()) return false;
     const QString dir = getInstanceDir("default");
     if (dir.isEmpty()) return fail("The default instance directory is unsafe. Check for a junction or symlink.");
     if (QFileInfo::exists(QDir(dir).filePath("overlay.qcow2"))) {
         auto lock = registryLock(); if (!lock) return false;
         auto config = normalized("default", readObject(QDir(m_resourceRoot).filePath("vm/configs/default-instance.json")));
-        const QString prepared = QDir(m_resourceRoot).filePath("vm/images/bliss-provisioned.qcow2");
+        const QString prepared = preparedBaseImage();
         if (QFileInfo::exists(prepared)) config["baseImage"] = prepared;
         if (!validate("default", config, false)) return false;
         return writeConfig(QDir(dir).filePath("config.json"), config);
@@ -288,15 +297,67 @@ bool InstanceManager::initialize()
     return createInstance("default");
 }
 
+QString InstanceManager::preparedBaseImage() const
+{
+    const QString source = QDir(m_resourceRoot).filePath("vm/images/bliss-provisioned.qcow2");
+    const QString layout = QDir(m_resourceRoot).filePath("installed-layout.json");
+    if (!QFileInfo::exists(layout)) return source;
+    const auto metadata = readObject(layout);
+    const QString digest = metadata.value("baseImageSha256").toString().toLower();
+    if (!QRegularExpression("^[0-9a-f]{64}$").match(digest).hasMatch()) {
+        fail("The installed Android image manifest is invalid. Reinstall DroidBox."); return {};
+    }
+    const QString dataRoot = QFileInfo(m_instancesRoot).absolutePath();
+    const QString bases = QDir(dataRoot).filePath("bases");
+    const QString version = QDir(bases).filePath(digest);
+    if (QFileInfo(dataRoot).isSymLink() || QFileInfo(bases).isSymLink()
+        || QFileInfo(version).isSymLink() || !QDir().mkpath(version)) {
+        fail("Cannot prepare the Android base directory. Check permissions and junctions."); return {};
+    }
+    QLockFile lock(QDir(bases).filePath(".preparation.lock"));
+    lock.setStaleLockTime(0);
+    if (!lock.tryLock(0)) { fail("Another DroidBox process is preparing the Android image. Wait for it to finish."); return {}; }
+    const QString target = QDir(version).filePath("bliss-provisioned.qcow2");
+    if (QFileInfo(target).isSymLink()) { fail("The cached Android base must not be a link."); return {}; }
+    if (QFileInfo::exists(target)) {
+        if (QFileInfo(target).size() == metadata.value("baseImageBytes").toVariant().toLongLong()) return target;
+        fail("The preserved Android base has an unexpected size. Preserve your instance data and reinstall DroidBox."); return {};
+    }
+    QFile input(source);
+    QSaveFile output(target);
+    if (!input.open(QIODevice::ReadOnly) || !output.open(QIODevice::WriteOnly)) {
+        fail("Cannot copy the Android base to user data. Check free disk space and permissions."); return {};
+    }
+    qInfo() << "Preparing the installed Android base in user data:" << target;
+    QCryptographicHash hash(QCryptographicHash::Sha256);
+    while (!input.atEnd()) {
+        const QByteArray block = input.read(4 * 1024 * 1024);
+        if (block.isEmpty() && input.error() != QFileDevice::NoError) {
+            fail("Could not read the installed Android image."); return {};
+        }
+        hash.addData(block);
+        if (output.write(block) != block.size()) {
+            fail("Could not copy the Android image. Free disk space and retry."); return {};
+        }
+    }
+    if (QString::fromLatin1(hash.result().toHex()) != digest || !output.commit()) {
+        fail("Android image verification or publication failed. Reinstall DroidBox and check disk space."); return {};
+    }
+    // Old versions are retained: every overlay keeps its original backing base.
+    return target;
+}
+
 bool InstanceManager::createInstance(const QString& name, const QJsonObject& overrides)
 {
     auto lock = registryLock(); if (!lock) return false;
     if (!isValidName(name)) return fail("Choose a unique name with letters, digits, hyphens, or underscores (maximum 48 characters).");
     auto config = readObject(QDir(m_resourceRoot).filePath("vm/configs/default-instance.json"));
+    if (QFileInfo::exists(QDir(m_resourceRoot).filePath("installed-layout.json")))
+        config["ramMB"] = std::clamp(config.value("ramMB").toInt(4096), 1024, maximumRamMB());
     for (auto it = overrides.begin(); it != overrides.end(); ++it) config[it.key()] = it.value();
     // This repository's original image predates the ADB startup repair. Fresh
     // instances must use the separately prepared base, never silently regress.
-    const QString prepared = QDir(m_resourceRoot).filePath("vm/images/bliss-provisioned.qcow2");
+    const QString prepared = preparedBaseImage();
     if (!overrides.contains("baseImage") && QFileInfo::exists(prepared)) config["baseImage"] = prepared;
     else if (!overrides.contains("baseImage"))
         return fail("Prepare vm/images/bliss-provisioned.qcow2 with image-build/prepare-instance-base.sh first. See docs/PHASE-5-TESTING.md. The original base lacks the Phase 4 ADB startup repair.");

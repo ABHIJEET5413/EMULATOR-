@@ -16,6 +16,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <memory>
 
 namespace {
 
@@ -83,14 +84,19 @@ void messageHandler(const QtMsgType type,
 
 int main(int argc, char* argv[])
 {
-    QApplication application(argc, argv);
+    bool initializeOnly = false;
+    for (int index = 1; index < argc; ++index)
+        if (QString::fromLocal8Bit(argv[index]) == QStringLiteral("--initialize-only")) initializeOnly = true;
+    std::unique_ptr<QCoreApplication> application;
+    if (initializeOnly) application = std::make_unique<QCoreApplication>(argc, argv);
+    else application = std::make_unique<QApplication>(argc, argv);
     QCoreApplication::setApplicationName(QStringLiteral("DroidBox"));
     QCoreApplication::setOrganizationName(QStringLiteral("DroidBox"));
     qInstallMessageHandler(messageHandler);
 
     qInfo() << "DroidBox desktop interface initialized.";
     QString apkToInstall;
-    const QStringList arguments = application.arguments();
+    const QStringList arguments = application->arguments();
     for (qsizetype index = 1; index < arguments.size(); ++index) {
         if (QFileInfo(arguments.at(index)).suffix().compare(QStringLiteral("apk"), Qt::CaseInsensitive) == 0) {
             apkToInstall = arguments.at(index);
@@ -101,8 +107,16 @@ int main(int argc, char* argv[])
     const QString root = InstanceManager::findResourceRoot();
     InstanceManager manager(root, InstanceManager::defaultInstancesRoot(root));
     if (!manager.initialize()) {
+        if (initializeOnly) { qCritical().noquote() << manager.lastError(); return 1; }
         QMessageBox::critical(nullptr, "Instance storage unavailable", manager.lastError()); return 1;
     }
+    if ((initializeOnly || !apkToInstall.isEmpty()) && manager.getConfig("default").isEmpty()
+        && !manager.createInstance("default")) {
+        if (initializeOnly) qCritical().noquote() << manager.lastError();
+        else QMessageBox::critical(nullptr, "Default instance unavailable", manager.lastError());
+        return 1;
+    }
+    if (initializeOnly) { qInfo() << "Default instance is initialized."; return 0; }
     InstanceListWindow window(&manager);
     const auto instances = manager.listInstances();
     const int selected = arguments.indexOf("--instance");
@@ -112,6 +126,6 @@ int main(int argc, char* argv[])
     else if (instances.size() == 1 && !arguments.contains("--instances")) window.launchInstance(instances.first().name);
     else window.show();
     // A failed launch must leave an accessible launcher, never an invisible process.
-    if (application.topLevelWidgets().size() == 1) window.show();
-    return application.exec();
+    if (QApplication::topLevelWidgets().size() == 1) window.show();
+    return application->exec();
 }

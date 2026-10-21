@@ -2,6 +2,10 @@ add_executable(test_vm_control
     test_vm_control.cpp
 )
 
+if(WIN32)
+    add_test(NAME installer_preflight COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${CMAKE_CURRENT_SOURCE_DIR}/test_installer.ps1")
+endif()
+
 target_link_libraries(test_vm_control
     PRIVATE
         droidbox_core

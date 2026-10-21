@@ -69,6 +69,7 @@ private:
     bool writeConfig(const QString& path, const QJsonObject& config);
     bool createOverlay(const QString& path, const QString& base);
     bool runImageTool(const QStringList& arguments);
+    QString preparedBaseImage() const;
     std::unique_ptr<QLockFile> registryLock() const;
     std::unique_ptr<QLockFile> diskLock(const QString& name) const;
     std::shared_ptr<void> diskFileLock(const QString& name, bool deleting = false) const;

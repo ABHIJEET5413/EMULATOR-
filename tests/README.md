@@ -82,3 +82,18 @@ All disk mutations in this harness use isolated temporary instance directories.
 windows and QMP protocol fixtures to verify ordinary typing with keymaps disabled, focus isolation,
 press/release codes, cross-window modifier release, and host dialog input. It requires an interactive
 Windows desktop; it does not require Android or WHPX.
+
+## Phase 6
+
+`test_installer.ps1` is a static packaging preflight registered as
+`installer_preflight` on Windows. It parses packaging PowerShell scripts, checks
+required license/assets/configuration, and optionally verifies every staged file
+against `installer/bundle/manifest.json`. It does not install/uninstall anything
+or change Windows features. Run manually with:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/test_installer.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/test_installer.ps1 -BundlePath "$PWD/installer/bundle"
+```
+
+Full installer/guest acceptance remains the [Phase 6 manual checklist](../docs/PHASE-6-TESTING.md).

@@ -1,8 +1,9 @@
 # Attribution & Licenses
 
 This document tracks dependencies and planned redistribution notices.
-The installer and its license bundle have not been produced yet; unchecked
-packaging items below remain work for Phase 6.
+The Phase 6 installer scripts and full license bundle are implemented. Unchecked
+source/notices inventory items below remain required before public distribution;
+development builds do not claim that review is complete.
 
 ---
 
@@ -47,38 +48,48 @@ packaging items below remain work for Phase 6.
 ### QEMU (GPLv2)
 - [x] QEMU is a **separate executable** — DroidBox does NOT link to QEMU code
 - [x] DroidBox communicates with QEMU only via IPC (QMP socket, process launch)
-- [ ] Full GPLv2 license text included in `installer/licenses/QEMU-LICENSE.txt`
-- [ ] Source code offer included in installer's license screen
+- [x] Full GPLv2 license text included in `installer/licenses/QEMU-LICENSE.txt`
+- [x] Source-offer text linked from the installer license screen
 - [x] Exact Windows fork commit identified (not the older GitHub mirror tip)
 - [ ] Matching QEMU, dependency, firmware sources/notices included in final distribution
 
 ### Qt 6 (LGPL v3)
 - [x] Qt libraries are **dynamically linked** (`.dll` files)
 - [x] User can replace Qt DLLs with their own build
-- [ ] Full LGPL v3 text included in `installer/licenses/QT-LICENSE.txt`
-- [ ] Source code offer for Qt included in installer
+- [x] Full LGPL v3 text included in `installer/licenses/QT-LICENSE.txt`
+- [x] Pinned Qt Base/SVG sources and source-request information staged for installer
 - [x] DroidBox's own source is available (MIT license)
 
 ### Bliss OS (mixed licenses)
-- [ ] Apache 2.0 notice included
+- [x] Apache 2.0 text included in `installer/licenses/BLISS-LICENSE.txt`
 - [x] Local startup/provisioning changes retained in `image-build/`
 - [ ] Original kernel/Android build provenance and full third-party notices included
 
 ### Neo Store (GPLv3+)
 - [x] Pre-installed `com.machiav3lli.fdroid` 1.0.5 identified
-- [ ] GPLv3 text included
+- [x] GPLv3 text included in `installer/licenses/FDROID-LICENSE.txt`
 - [ ] Matching Neo Store source release and build/dependency information included
 
 ---
 
 ## Source distribution status
 
-No source offer has been issued and no placeholder contact is valid. Installer
-implementation must provide the applicable complete corresponding sources and
+The installer includes `SOURCE-OFFER.txt` using the actual project issue tracker
+as the source-request channel, and `SOURCES.md` identifies the collected primary
+sources. The offer text is for distributor-approved releases; the build wrapper
+requires a complete reviewed release inventory for `-ForDistribution`.
+The distributor must provide the applicable complete corresponding sources and
 notices for the exact redistributed binaries, including required build files,
 local changes, submodules, and dependency components. A project homepage or an
 unrelated upstream release does not establish correspondence. Do not mark the
 unchecked packaging items complete until the final payload has been inspected.
+
+`installer/source-lock.json` pins the clean image and core source hashes.
+Bundle preparation copies the original QEMU/ADB notices, Qt SBOMs, current host
+and image-build source, and exact Qt/QEMU archives into the offline payload.
+Microsoft's published Visual C++ 2015-2022 runtime terms are retained as DOCX and
+plain text in `installer/licenses`; the exact bundled package's applicable terms
+remain part of the distributor's final inventory review.
 
 The Windows builder identifies its source repository as
 `https://repo.or.cz/qemu/ar7.git`, whose verified master ref was
