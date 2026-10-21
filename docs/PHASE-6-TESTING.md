@@ -8,7 +8,7 @@ public redistribution readiness.
 
 - MSVC 2022 / Qt 6.12.0 Release application and test targets built.
 - CTest: **10/10 suites passed** (including `launch_channel` and
-  `whpx_script`); the run took 35.11 seconds.
+  `whpx_script`); the latest run took 28.33 seconds.
 - Instance manager regression harness: **45 checks passed**, including
   wildcard IPv4/IPv6 port collision detection.
 - WHPX PowerShell regression tests: passed, covering direct `-File` invocation
@@ -21,10 +21,10 @@ public redistribution readiness.
   reported `sys.boot_completed=1`.
 - Live ADB checks passed APK installation, file push, media scan, PNG screenshot
   capture/decoding, and Android navigation key events against that guest.
-- The package preflight verified all **3,397** staged paths and hashes.
+- The package preflight verified all **3,399** staged paths and hashes.
 - Latest local setup artifact: `installer/Output/DroidBoxSetup.exe`,
-  **319,804,420 bytes**, SHA-256
-  `64b42ac38280f2afcc251c38779a3f8188e127524cb5b34d2d9faa760f928448`.
+  **1,810,475,806 bytes**, SHA-256
+  `c2ad66f0ec7d68cb5ac51ed2b8ec1ed520a5165b8719a72cebaF022e7e49afeb`.
   Generated installer output is ignored by Git and is not part of the source
   repository.
 

@@ -64,6 +64,7 @@ development builds do not claim that review is complete.
 - [x] Apache 2.0 text included in `installer/licenses/BLISS-LICENSE.txt`
 - [x] Local startup/provisioning changes retained in `image-build/`
 - [ ] Original kernel/Android build provenance and full third-party notices included
+- [ ] Inspect the exact FOSS image for third-party firmware, codecs, drivers, and preinstalled apps and verify their individual redistribution terms. The [Bliss OS licensing page](https://blissos.org/licensing.html) says FOSS/Vanilla images may still include proprietary redistributables; the variant label alone does not complete that check.
 
 ### Neo Store (GPLv3+)
 - [x] Pre-installed `com.machiav3lli.fdroid` 1.0.5 identified

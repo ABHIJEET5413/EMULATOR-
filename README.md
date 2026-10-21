@@ -13,8 +13,8 @@ Verification recorded on **21 October 2026**:
 
 - Release application and test targets build with MSVC 2022 and Qt 6.12.0.
 - All **10 registered CTest suites pass**, with zero failures.
-- Installer preflight verified **3,397 staged file paths and SHA-256 hashes**.
-- Local Inno Setup output is **319,804,420 bytes**; SHA-256 and test scope are
+- Installer preflight verified **3,399 staged file paths and SHA-256 hashes**.
+- Latest local Inno Setup output is **1,810,475,806 bytes**; SHA-256 and test scope are
   recorded in [Phase 6 test results](docs/PHASE-6-TESTING.md).
 - On this PC, a silent install to a path containing spaces booted Bliss to
   Android Home; live ADB APK, file transfer, screenshot, and navigation checks passed.
@@ -390,8 +390,8 @@ After staging the installer, verify every staged file separately:
 powershell -NoProfile -ExecutionPolicy Bypass -File tests/test_installer.ps1 -BundlePath "$PWD/installer/bundle"
 ```
 
-**Recorded result:** 8/8 suites passed in 21.20 seconds on 21 October 2026; all
-3,397 staged hashes also passed. CTest does not install the product or validate
+**Recorded result:** 10/10 suites passed in 28.33 seconds on 21 October 2026; all
+3,399 staged hashes also passed. CTest does not install the product or validate
 every physical device, guest interaction, or Windows installer flow.
 
 Live ADB tests are explicit opt-ins, excluded from CTest, and can install an APK
