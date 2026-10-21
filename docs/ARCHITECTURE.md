@@ -87,8 +87,8 @@ The main Windows application the user interacts with.
   and VM status bar.
 - **Why**: Presents the Phase 1 QEMU controller as one interactive desktop app.
 - **How**: Starts the default instance and connects controller lifecycle
-  signals. When QEMU starts, it asks `AdbBridge` to connect to
-  `localhost:5555`; the status bar follows ADB connection and Android boot
+  signals. When QEMU starts, it asks `AdbBridge` to connect to the configured
+  ADB host port on `localhost`; the status bar follows ADB connection and Android boot
   progress. Home, Back, Recents, volume, and Power actions send Android key
   events. Screenshot and APK buttons open file dialogs. Dropped APKs are
   installed, other dropped files are copied to `/sdcard/Download/`, and an
@@ -145,15 +145,18 @@ The main Windows application the user interacts with.
   navigation controls, media indexing, and Android shell commands.
 - **How**: Locates `adb.exe` beside the application in `vm/adb` or `adb`,
   then falls back to `PATH`. Each operation runs asynchronously in its own
-  `QProcess`. On VM start it launches the ADB server, retries
-  `adb connect localhost:5555` every two seconds for up to 60 seconds, then
+  `QProcess`. On VM start it launches the ADB server, reads the forwarded host
+  port from the QEMU instance configuration, retries `adb connect` every two
+  seconds, and verifies `adb get-state` reports `device` before marking the
+  guest connected. Offline transports are disconnected and retried; a clear
+  error is shown if the guest's ADB-over-TCP service is not enabled. It then
   polls `shell getprop sys.boot_completed` until Android is ready. A health
   poll detects disconnects and reconnects. APK installation uses
   `adb install -r`; file transfer uses `adb push` followed by Android's
   media-scanner broadcast; screenshots use `exec-out screencap -p` and are
-  saved atomically as PNG. All guest commands target the `localhost:5555`
-  serial. The QEMU user-mode forward must expose host TCP port 5555 to guest
-  TCP port 5555.
+  saved atomically as PNG. Guest commands target `localhost:<adbHostPort>`.
+  The QEMU user-mode forward maps that configured host TCP port to guest TCP
+  port 5555.
 
 #### 1.9 `InstanceManager` (Phase 5)
 - **What**: Manages multiple Android instances.
@@ -251,7 +254,7 @@ User selects, drops, or opens an .apk
 MainWindow queues it until Android reports boot complete
         |
         v
-AdbBridge -> QProcess: adb -s localhost:5555 install -r <path>
+AdbBridge -> QProcess: adb -s localhost:<adbHostPort> install -r <path>
         |
         v
 Show success in the status bar or the ADB error in a dialog
@@ -259,10 +262,11 @@ Show success in the status bar or the ADB error in a dialog
 
 ### ADB Connection and File Flow
 ```
-QemuController::vmStarted -> AdbBridge::connectToGuest(localhost, 5555)
+QemuController::vmStarted -> AdbBridge::connectToGuest(localhost, adbHostPort)
         |
         +-- adb start-server
-        +-- retry adb connect localhost:5555 every 2 seconds
+        +-- retry adb connect localhost:<adbHostPort> every 2 seconds
+        +-- verify adb get-state reports device; reset and retry offline transports
         +-- poll sys.boot_completed and report Ready
         +-- poll device health and reconnect after a disconnect
 

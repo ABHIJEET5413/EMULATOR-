@@ -18,6 +18,7 @@ class AdbBridge final : public QObject {
 public:
     /** Create a bridge; ADB is located beside the app or on PATH by default. */
     explicit AdbBridge(QObject* parent = nullptr);
+    ~AdbBridge() override;
 
     /** Use a specific adb executable, or clear the override to search standard locations. */
     void setAdbPath(const QString& path);
@@ -101,6 +102,7 @@ private:
                         bool useGuestSerial = true);
     void startAdbServer(quint64 generation);
     void tryConnect(quint64 generation);
+    void verifyTransport(quint64 generation);
     void pollBootStatus(quint64 generation);
     void pollConnectionHealth(quint64 generation);
     void handleDisconnected(quint64 generation);

@@ -108,10 +108,19 @@ Once Android is running, connect via ADB:
 
 ```powershell
 adb connect localhost:5555
-adb wait-for-device
+```
 
+If `adb connect` cannot reach the guest, enable **ADB over network** in the
+Bliss OS Developer options, then retry the connection. The guest must have
+ADB listening on TCP port 5555 before the host-side port forward can reach it.
+After the first connection, persist the port so later boots expose the same
+ADB service:
+
+```powershell
+adb wait-for-device
 # Enable ADB over TCP permanently (so it survives reboot)
 adb shell setprop persist.adb.tcp.port 5555
+adb shell setprop service.adb.tcp.port 5555
 
 # Set a fixed screen density (optional)
 adb shell wm density 240

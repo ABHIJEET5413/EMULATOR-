@@ -50,6 +50,9 @@ public:
     /** Return the most recently observed VM state. */
     QString getStatus() const;
 
+    /** Return the host TCP port forwarded to Android's ADB port. */
+    int adbHostPort() const;
+
     /** Override qemuPath from config; used by the CLI harness and manual runs. */
     void setQemuPath(const QString& path);
 

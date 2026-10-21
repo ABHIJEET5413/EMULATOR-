@@ -39,6 +39,21 @@ AdbBridge::AdbBridge(QObject* parent)
     });
 }
 
+AdbBridge::~AdbBridge()
+{
+    m_connectTimer.stop();
+    m_bootPollTimer.stop();
+    m_healthTimer.stop();
+    const auto processes = findChildren<QProcess*>();
+    for (QProcess* process : processes) {
+        QObject::disconnect(process, nullptr, this, nullptr);
+        if (process->state() != QProcess::NotRunning) {
+            process->kill();
+            process->waitForFinished(3000);
+        }
+    }
+}
+
 void AdbBridge::setAdbPath(const QString& path)
 {
     m_adbPath = path.trimmed();
@@ -376,6 +391,7 @@ quint64 AdbBridge::runAdbAsync(const QStringList& arguments,
     auto* timeoutTimer = new QTimer(process);
     timeoutTimer->setSingleShot(true);
     auto completed = std::make_shared<bool>(false);
+    auto timedOut = std::make_shared<bool>(false);
     const auto finish = [this, process, timeoutTimer, completed, completion, id, binaryOutput](const AdbResult& result) {
         if (*completed) {
             return;
@@ -392,22 +408,22 @@ quint64 AdbBridge::runAdbAsync(const QStringList& arguments,
         process->deleteLater();
     };
 
-    connect(timeoutTimer, &QTimer::timeout, this, [process, finish]() {
+    connect(timeoutTimer, &QTimer::timeout, this, [process, timedOut]() {
+        *timedOut = true;
         process->kill();
-        AdbResult result;
-        result.standardError = QByteArrayLiteral("ADB command timed out.");
-        result.timedOut = true;
-        finish(result);
     });
     connect(process,
             qOverload<int, QProcess::ExitStatus>(&QProcess::finished),
             this,
-            [process, finish](const int exitCode, const QProcess::ExitStatus exitStatus) {
+            [process, timedOut, finish](const int exitCode, const QProcess::ExitStatus exitStatus) {
                 AdbResult result;
-                result.exitCode = exitStatus == QProcess::NormalExit ? exitCode : -1;
+                result.exitCode = !*timedOut && exitStatus == QProcess::NormalExit ? exitCode : -1;
                 result.standardOutput = process->readAllStandardOutput();
                 result.standardError = process->readAllStandardError();
-                if (exitStatus == QProcess::CrashExit && result.standardError.isEmpty()) {
+                if (*timedOut) {
+                    result.standardError = QByteArrayLiteral("ADB command timed out.");
+                    result.timedOut = true;
+                } else if (exitStatus == QProcess::CrashExit && result.standardError.isEmpty()) {
                     result.standardError = QByteArrayLiteral("adb.exe terminated unexpectedly.");
                 }
                 finish(result);
@@ -451,8 +467,9 @@ void AdbBridge::tryConnect(const quint64 generation)
     }
     if (m_connectAttempts >= kMaxConnectAttempts) {
         m_connectTimer.stop();
-        emit errorOccurred(QStringLiteral("Cannot connect to Android at %1. The VM may still be booting; check that ADB over TCP is enabled and the QEMU port forward uses %2.")
+        emit errorOccurred(QStringLiteral("ADB did not get a usable connection to Android at %1 after %2 attempts. Confirm ADB over TCP is enabled in the guest and QEMU forwards host port %3 to guest port 5555.")
                                .arg(m_serial)
+                               .arg(kMaxConnectAttempts)
                                .arg(m_port));
         return;
     }
@@ -472,9 +489,7 @@ void AdbBridge::tryConnect(const quint64 generation)
                             || lowerOutput.contains(QStringLiteral("already connected to")));
                     if (connectionSucceeded) {
                         m_connectTimer.stop();
-                        m_connected = true;
-                        emit connected(m_serial);
-                        waitForBoot();
+                        verifyTransport(generation);
                         return;
                     }
 
@@ -487,6 +502,52 @@ void AdbBridge::tryConnect(const quint64 generation)
                     }
                 },
                 false);
+}
+
+void AdbBridge::verifyTransport(const quint64 generation)
+{
+    if (generation != m_connectionGeneration || m_connectCommandRunning) {
+        return;
+    }
+
+    m_connectCommandRunning = true;
+    runAdbAsync({QStringLiteral("get-state")}, 5000,
+                [this, generation](const AdbResult& result) {
+                    if (generation != m_connectionGeneration) {
+                        return;
+                    }
+                    m_connectCommandRunning = false;
+                    if (result.exitCode == 0
+                        && QString::fromUtf8(result.standardOutput).trimmed() == QStringLiteral("device")) {
+                        m_connected = true;
+                        emit connected(m_serial);
+                        waitForBoot();
+                        return;
+                    }
+
+                    const QString state = QString::fromUtf8(result.standardOutput).trimmed();
+                    qWarning().noquote() << "ADB transport for" << m_serial
+                                         << "is not ready (" << resultMessage(result) << "); retrying.";
+                    runAdbAsync({QStringLiteral("disconnect"), m_serial}, 5000,
+                                [this, generation, state](const AdbResult& disconnectResult) {
+                                    if (generation != m_connectionGeneration) {
+                                        return;
+                                    }
+                                    if (disconnectResult.exitCode != 0) {
+                                        qDebug().noquote() << "Could not reset offline ADB transport for"
+                                                           << m_serial << ":"
+                                                           << resultMessage(disconnectResult);
+                                    }
+                                    if (m_connectAttempts >= kMaxConnectAttempts) {
+                                        tryConnect(generation);
+                                    } else {
+                                        qDebug().noquote() << "Retrying ADB connection after transport state"
+                                                           << (state.isEmpty() ? QStringLiteral("unknown") : state);
+                                        m_connectTimer.start(kConnectIntervalMs);
+                                    }
+                                },
+                                false);
+                });
 }
 
 void AdbBridge::pollBootStatus(const quint64 generation)
@@ -520,6 +581,17 @@ void AdbBridge::pollBootStatus(const quint64 generation)
                         m_bootCompleted = true;
                         m_healthTimer.start();
                         emit bootCompleted();
+                        return;
+                    }
+
+                    const QString errorText = QString::fromUtf8(result.standardError).toLower();
+                    if (result.exitCode != 0
+                        && (errorText.contains(QStringLiteral("device offline"))
+                            || errorText.contains(QStringLiteral("device '")
+                                + m_serial.toLower() + QStringLiteral("' not found")))) {
+                        qWarning().noquote() << "ADB transport became unavailable while waiting for Android boot. Reconnecting."
+                                             << resultMessage(result);
+                        handleDisconnected(generation);
                         return;
                     }
 

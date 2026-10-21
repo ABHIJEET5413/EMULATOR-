@@ -266,6 +266,11 @@ QString QemuController::getStatus() const
     return m_vmStatus;
 }
 
+int QemuController::adbHostPort() const
+{
+    return m_adbHostPort;
+}
+
 void QemuController::setQemuPath(const QString& path)
 {
     m_qemuPathOverride = path.trimmed();

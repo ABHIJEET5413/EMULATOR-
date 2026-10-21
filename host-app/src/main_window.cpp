@@ -48,7 +48,7 @@ MainWindow::MainWindow(QWidget* parent)
     connect(&m_qemuController, &QemuController::vmStarted,
             this, [this]() {
                 m_statusLabel->setText(QStringLiteral("Status: Connecting to Android"));
-                m_adbBridge.connectToGuest(QStringLiteral("localhost"), 5555);
+                m_adbBridge.connectToGuest(QStringLiteral("localhost"), m_qemuController.adbHostPort());
             });
     connect(&m_qemuController, &QemuController::vmStopped,
             this, [this](const int exitCode) {
