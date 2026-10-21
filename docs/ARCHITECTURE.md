@@ -82,37 +82,42 @@ The main Windows application the user interacts with.
   and asynchronous events, and retries a lost connection every 500 ms
   while the controller still owns a running QEMU process.
 
-#### 1.3 `DisplayEmbed` (Phase 2)
+#### 1.3 `MainWindow` (Phase 2)
+- **What**: Qt Widgets desktop window with the guest display, side toolbar,
+  and VM status bar.
+- **Why**: Presents the Phase 1 QEMU controller as one interactive desktop app.
+- **How**: Starts the default instance, connects controller lifecycle signals,
+  shows user-facing errors, logs placeholder toolbar and drag/drop actions,
+  and requests VM shutdown before closing. Fullscreen toggles immediately.
+
+#### 1.4 `DisplayEmbed` (Phase 2)
 - **What**: Embeds the QEMU guest display inside the Qt main window.
 - **Why**: The emulator must feel like one application, not QEMU in a
   separate window.
-- **How**: 
-  - **Primary approach**: Win32 `SetParent()` — find QEMU's SDL/GTK
-    window by title, reparent it as a child of a `QWidget`. Fast, zero
-    overhead, but fragile (QEMU must use SDL and not resize itself).
-  - **Fallback**: VNC client — QEMU exposes a VNC server (`-vnc :0`),
-    Qt widget connects as a VNC client and renders the framebuffer.
-    More reliable but adds latency and complexity.
-  - Decision documented in Phase 2 guide.
+- **How**: The current implementation uses Win32 `SetParent()` to find
+  QEMU's visible SDL window by the child process ID, remove its top-level
+  decorations, and resize it to the Qt display widget. The existing SDL /
+  OpenGL rendering path stays active. VNC remains a fallback if reparenting
+  proves unstable on a target Windows setup.
 
-#### 1.4 `InputHandler` (Phase 2)
+#### 1.5 `InputHandler` (Phase 2)
 - **What**: Translates host mouse/keyboard events to guest input.
 - **Why**: User expects to use their mouse as a finger and their
   keyboard for typing inside Android.
-- **How**: 
-  - Mouse events → QMP `input-send-event` (or if using VNC, sent via
-    the VNC protocol). QEMU's `usb-tablet` device provides absolute
-    positioning (no mouse grab needed).
-  - Keyboard → HID scancodes via QMP or VNC key events.
+- **How**: With the embedded SDL child focused, Windows routes mouse and
+  keyboard events directly to QEMU, which passes absolute tablet input via
+  `usb-tablet` and keyboard input to Android. The Qt event filter also
+  forwards mouse and supported key events through QMP when events are
+  delivered to the Qt display widget instead of the native QEMU child.
 
-#### 1.5 `KeymapEngine` (Phase 3)
+#### 1.6 `KeymapEngine` (Phase 3)
 - **What**: Maps physical keyboard keys to screen tap/swipe positions.
 - **Why**: Gamers want WASD→d-pad, etc.
 - **How**: JSON profiles (`keymaps/*.json`) define key→action mappings.
   Actions can be: tap at (x,y), swipe from (x1,y1) to (x2,y2), or
   key passthrough.
 
-#### 1.6 `AdbBridge` (Phase 4)
+#### 1.7 `AdbBridge` (Phase 4)
 - **What**: Manages ADB connection to the guest Android.
 - **Why**: ADB is required for APK install, file push, screenshots,
   and running shell commands inside the guest.
@@ -120,7 +125,7 @@ The main Windows application the user interacts with.
   guest via `adb connect localhost:<port>` (port forwarded by QEMU's
   `-netdev user,hostfwd=tcp::5555-:5555`).
 
-#### 1.7 `InstanceManager` (Phase 5)
+#### 1.8 `InstanceManager` (Phase 5)
 - **What**: Manages multiple Android instances.
 - **Why**: Users may want multiple instances (different apps, accounts).
 - **How**: Each instance = one JSON config + one qcow2 overlay.
@@ -128,7 +133,7 @@ The main Windows application the user interacts with.
   creates a copy-on-write overlay per instance. Factory reset =
   delete the overlay and create a new one.
 
-#### 1.8 `SettingsManager` (Phase 5)
+#### 1.9 `SettingsManager` (Phase 5)
 - **What**: Per-instance settings (CPU cores, RAM, resolution, DPI).
 - **Why**: Different apps need different resources.
 - **How**: JSON file per instance in `instances/<name>/config.json`.
@@ -247,8 +252,8 @@ and ADB modules.
 | Decision | Chosen | Why |
 |---|---|---|
 | Hypervisor | WHPX (Hyper-V) | HAXM is deprecated; WHPX works on Win10/11 with Hyper-V |
-| Display backend | TBD (Phase 2) | SetParent vs VNC — will evaluate both |
-| Input method | usb-tablet + QMP | Absolute positioning, no mouse grab |
+| Display backend | Win32 SetParent with SDL/OpenGL | Reuses the existing QEMU display and avoids framebuffer copies; VNC is the fallback if reparenting is unstable |
+| Input method | Native SDL input plus QMP event forwarding | Native child-window input is direct; QMP handles events delivered to the Qt display widget |
 | Disk format | qcow2 overlay | Copy-on-write enables multi-instance + factory reset |
 | App store | F-Droid | Legal alternative to Play Store |
 | Installer | Inno Setup | Free, mature, widely trusted on Windows |

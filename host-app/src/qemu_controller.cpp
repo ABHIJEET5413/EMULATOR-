@@ -196,6 +196,20 @@ QString QemuController::queryStatus()
     return sendCommand(QStringLiteral("query-status"));
 }
 
+QString QemuController::sendInputEvents(const QJsonArray& events)
+{
+    if (events.isEmpty()) {
+        return {};
+    }
+    if (!m_qmpClient.isConnected()) {
+        return {};
+    }
+
+    return sendCommand(QStringLiteral("input-send-event"),
+                       {{QStringLiteral("events"), events}},
+                       QStringLiteral("input-send-event"));
+}
+
 QString QemuController::saveSnapshot(const QString& name)
 {
     return runDiskSnapshotCommand(QStringLiteral("save-snapshot"),
@@ -269,6 +283,11 @@ void QemuController::setOperationTimeoutMs(const int timeoutMs)
 bool QemuController::isRunning() const
 {
     return m_process.state() != QProcess::NotRunning;
+}
+
+qint64 QemuController::processId() const
+{
+    return m_process.processId();
 }
 
 void QemuController::handleQmpConnected()

@@ -7,6 +7,7 @@ This directory contains test executables for each phase.
 | File | Phase | What It Tests |
 |---|---|---|
 | `test_vm_control.cpp` | Phase 1 | QEMU launch, QMP connect, pause/resume, and stopped-VM disk snapshots |
+| `test_display_input.cpp` | Phase 2 | QMP pointer-coordinate scaling and Qt-to-QMP keycode mapping |
 | `test_keymap.cpp` | Phase 3 | Keymap JSON parsing, action dispatch |
 | `test_adb.cpp` | Phase 4 | ADB connect, install, push |
 | `test_instance_manager.cpp` | Phase 5 | Instance CRUD, overlay creation |
@@ -20,6 +21,9 @@ cmake --build build --config Release --target test_vm_control
 
 # Run a specific test
 .\build\Release\test_vm_control.exe --config vm\configs\default-instance.json
+
+# Run Phase 2 input translation checks (no VM or GUI required)
+.\build\Release\test_display_input.exe
 
 # Allow the guest time to boot before the graceful-stop test (milliseconds)
 .\build\Release\test_vm_control.exe --test graceful_stop `
@@ -39,6 +43,7 @@ cmake --build build --config Release --target test_vm_control
 - Tests are standalone console executables, not a test framework
 - Each test prints `[PASS]` or `[FAIL]` with details
 - VM-dependent tests require QEMU and a disk image
+- Display embedding, actual guest input, toolbar, and fullscreen behavior require the manual GUI checklist in the Phase 2 guide
 - Bliss OS 14 requires a Windows QEMU build with `virtio-vga-gl` and SDL OpenGL support; the controller enables these so Android can pass the text boot splash
 - Phase 1 snapshots preserve qcow2 disk contents only; save and restore require a stopped VM, and RAM/device state is not captured
 - Graceful stop requests guest ACPI shutdown first, then asks QEMU to exit if the guest does not respond; force termination is the last fallback

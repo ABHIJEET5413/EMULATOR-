@@ -1,4 +1,4 @@
-#include <QCoreApplication>
+#include <QApplication>
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
@@ -7,6 +7,8 @@
 #include <QLoggingCategory>
 #include <QStandardPaths>
 #include <QTextStream>
+
+#include "main_window.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -74,11 +76,13 @@ void messageHandler(const QtMsgType type,
 
 int main(int argc, char* argv[])
 {
-    QCoreApplication application(argc, argv);
+    QApplication application(argc, argv);
     QCoreApplication::setApplicationName(QStringLiteral("DroidBox"));
     QCoreApplication::setOrganizationName(QStringLiteral("DroidBox"));
     qInstallMessageHandler(messageHandler);
 
-    qInfo() << "DroidBox Phase 1 host initialized. Use test_vm_control.exe to exercise VM control.";
-    return 0;
+    qInfo() << "DroidBox desktop interface initialized.";
+    MainWindow window;
+    window.show();
+    return application.exec();
 }

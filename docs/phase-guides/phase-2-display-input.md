@@ -6,6 +6,16 @@ Embed the QEMU guest display inside the Qt main window so DroidBox looks
 like a single application. Forward mouse and keyboard events to the guest.
 Build the side toolbar with stub buttons.
 
+## Implementation Decision
+
+Phase 2 uses Win32 `SetParent` first. QEMU already runs its SDL display with
+OpenGL, so reparenting that window keeps the existing accelerated display
+path and avoids copying video frames. The window is found by QEMU process ID,
+not by its localized title. The native child window receives normal Windows
+mouse and keyboard input; the Qt event filter forwards events through QMP
+when they are delivered to the Qt display widget. VNC remains the fallback
+if SDL/OpenGL reparenting or input focus is unreliable on the target system.
+
 ---
 
 ## Prerequisites
@@ -387,6 +397,13 @@ cmake -B build -S host-app -G "Visual Studio 17 2022" -A x64 `
 cmake --build build --config Release
 
 .\build\Release\DroidBox.exe
+```
+
+The Phase 2 input translation harness can be run without a VM:
+
+```powershell
+cmake --build build --config Release --target test_display_input
+.\build\Release\test_display_input.exe
 ```
 
 ---

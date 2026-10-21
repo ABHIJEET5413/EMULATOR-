@@ -2,6 +2,7 @@
 
 #include <QByteArray>
 #include <QHash>
+#include <QJsonArray>
 #include <QJsonObject>
 #include <QObject>
 #include <QProcess>
@@ -39,6 +40,9 @@ public:
     QString resume();
     QString queryStatus();
 
+    /** Forward input events to QEMU while QMP is connected. */
+    QString sendInputEvents(const QJsonArray& events);
+
     /** Save or load a qcow2 disk-only snapshot. QEMU must be stopped. */
     QString saveSnapshot(const QString& name);
     QString loadSnapshot(const QString& name);
@@ -54,6 +58,9 @@ public:
 
     /** Return whether the child QEMU process is currently running. */
     bool isRunning() const;
+
+    /** Return the child QEMU process ID, or zero when it has not started. */
+    qint64 processId() const;
 
 signals:
     /** Emitted after QEMU launches and QMP completes its handshake. */
