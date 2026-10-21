@@ -55,6 +55,13 @@ mount -o loop "$guest/system.img" "$work/system"
 if [ -n "$key" ]; then
     sh "$script_root/provision-adb-image.sh" "$work/system" "$guest/data" "$key"
 else
+    # A generic image must not inherit a development host's authorization.
+    # Inspect filenames/lengths only; never print the contents of a key file.
+    authorized=$(find "$work/system" "$guest/data" -type f -name adb_keys -size +0c -print -quit)
+    [ -z "$authorized" ] || {
+        echo 'Source image contains authorized ADB keys; use a clean source for a generic base.' >&2
+        exit 1
+    }
     sh "$script_root/provision-adb-image.sh" "$work/system"
 fi
 umount "$work/system"

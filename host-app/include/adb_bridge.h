@@ -63,6 +63,8 @@ public:
     QString getDeviceSerial() const;
 
 signals:
+    /** Emitted while Android is waiting for the user to approve this host's RSA key. */
+    void authorizationRequired(const QString& serial);
     /** Emitted after ADB connects to the guest device. */
     void connected(const QString& serial);
     /** Emitted after the guest disconnects or the VM stops. */
@@ -104,6 +106,7 @@ private:
     void probeGuestListener(quint64 generation);
     void tryConnect(quint64 generation);
     void verifyTransport(quint64 generation);
+    void waitForAuthorization(quint64 generation);
     void pollBootStatus(quint64 generation);
     void pollConnectionHealth(quint64 generation);
     void handleDisconnected(quint64 generation);
@@ -124,6 +127,9 @@ private:
     bool m_connectCommandRunning{false};
     bool m_bootCommandRunning{false};
     bool m_healthCommandRunning{false};
+    bool m_waitingForAuthorization{false};
+    QElapsedTimer m_authorizationElapsed;
+    QTimer m_authorizationTimer;
     QElapsedTimer m_bootElapsed;
     QTimer m_connectTimer;
     QTimer m_bootPollTimer;

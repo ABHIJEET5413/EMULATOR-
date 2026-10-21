@@ -74,6 +74,12 @@ MainWindow::MainWindow(QWidget* parent)
             [this](const QString& serial) {
                 m_statusLabel->setText(QStringLiteral("Status: Connected (%1), booting...").arg(serial));
             });
+    connect(&m_adbBridge, &AdbBridge::authorizationRequired, this,
+            [this](const QString& serial) {
+                Q_UNUSED(serial)
+                setAdbActionsEnabled(false);
+                m_statusLabel->setText(QStringLiteral("Status: Select Allow in Android's USB debugging prompt"));
+            });
     connect(&m_adbBridge, &AdbBridge::disconnected, this, [this]() {
         setAdbActionsEnabled(false);
         if (m_qemuController.isRunning()) {

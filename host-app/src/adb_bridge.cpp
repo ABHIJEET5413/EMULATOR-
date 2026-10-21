@@ -21,6 +21,7 @@ constexpr int kConnectIntervalMs = 2000;
 constexpr int kMaxConnectAttempts = 30;
 constexpr int kBootPollIntervalMs = 3000;
 constexpr int kHealthPollIntervalMs = 5000;
+constexpr int kAuthorizationTimeoutMs = 180000;
 
 } // namespace
 
@@ -30,6 +31,7 @@ AdbBridge::AdbBridge(QObject* parent)
     m_connectTimer.setInterval(kConnectIntervalMs);
     m_bootPollTimer.setInterval(kBootPollIntervalMs);
     m_healthTimer.setInterval(kHealthPollIntervalMs);
+    m_authorizationTimer.setInterval(kConnectIntervalMs);
 
     connect(&m_connectTimer, &QTimer::timeout, this, [this]() {
         probeGuestListener(m_connectionGeneration);
@@ -40,10 +42,23 @@ AdbBridge::AdbBridge(QObject* parent)
     connect(&m_healthTimer, &QTimer::timeout, this, [this]() {
         pollConnectionHealth(m_connectionGeneration);
     });
+    connect(&m_authorizationTimer, &QTimer::timeout, this, [this]() {
+        if (m_authorizationElapsed.elapsed() >= kAuthorizationTimeoutMs) {
+            m_authorizationTimer.stop();
+            m_waitingForAuthorization = false;
+            ++m_connectionGeneration;
+            m_connectCommandRunning = false;
+            emit errorOccurred(QStringLiteral("Android has not authorized this computer. Select Allow in the guest's USB debugging prompt, then restart DroidBox to reconnect."));
+            return;
+        }
+        // Observe the existing ADB transport; never repeatedly run adb connect.
+        verifyTransport(m_connectionGeneration);
+    });
 }
 
 AdbBridge::~AdbBridge()
 {
+    m_authorizationTimer.stop();
     m_connectTimer.stop();
     m_bootPollTimer.stop();
     m_healthTimer.stop();
@@ -82,6 +97,8 @@ void AdbBridge::connectToGuest(const QString& host, const int port)
 
     const bool wasConnected = m_connected;
     ++m_connectionGeneration;
+    m_authorizationTimer.stop();
+    m_waitingForAuthorization = false;
     m_connectTimer.stop();
     m_bootPollTimer.stop();
     m_healthTimer.stop();
@@ -104,6 +121,8 @@ void AdbBridge::connectToGuest(const QString& host, const int port)
 void AdbBridge::disconnectFromGuest()
 {
     ++m_connectionGeneration;
+    m_authorizationTimer.stop();
+    m_waitingForAuthorization = false;
     m_connectTimer.stop();
     m_bootPollTimer.stop();
     m_healthTimer.stop();
@@ -469,7 +488,8 @@ void AdbBridge::startAdbServer(const quint64 generation)
 
 void AdbBridge::probeGuestListener(const quint64 generation)
 {
-    if (generation != m_connectionGeneration || m_connected || m_connectCommandRunning) {
+    if (generation != m_connectionGeneration || m_connected || m_connectCommandRunning
+        || m_waitingForAuthorization) {
         return;
     }
     m_connectTimer.stop();
@@ -545,7 +565,8 @@ void AdbBridge::probeGuestListener(const quint64 generation)
 
 void AdbBridge::tryConnect(const quint64 generation)
 {
-    if (generation != m_connectionGeneration || m_connected || m_connectCommandRunning) {
+    if (generation != m_connectionGeneration || m_connected || m_connectCommandRunning
+        || m_waitingForAuthorization) {
         return;
     }
     if (m_connectAttempts >= kMaxConnectAttempts) {
@@ -575,6 +596,19 @@ void AdbBridge::tryConnect(const quint64 generation)
                         return;
                     }
 
+                    const QString detail = (output + QLatin1Char('\n')
+                        + QString::fromUtf8(result.standardError)).trimmed();
+                    if (detail.contains(QStringLiteral("unauthorized"), Qt::CaseInsensitive)
+                        || detail.contains(QStringLiteral("failed to authenticate"), Qt::CaseInsensitive)) {
+                        waitForAuthorization(generation);
+                        return;
+                    }
+                    if (detail.contains(QStringLiteral("offline"), Qt::CaseInsensitive)) {
+                        m_connectTimer.stop();
+                        emit errorOccurred(QStringLiteral("ADB reports an offline guest at %1. Check the guest's adbd service before restarting DroidBox. Automatic reconnect has stopped.").arg(m_serial));
+                        return;
+                    }
+
                     qDebug().noquote() << "ADB connect attempt" << m_connectAttempts
                                        << "failed:" << resultMessage(result);
                     if (m_connectAttempts >= kMaxConnectAttempts) {
@@ -584,6 +618,23 @@ void AdbBridge::tryConnect(const quint64 generation)
                     }
                 },
                 false);
+}
+
+void AdbBridge::waitForAuthorization(const quint64 generation)
+{
+    if (generation != m_connectionGeneration) {
+        return;
+    }
+    m_connectTimer.stop();
+    if (!m_waitingForAuthorization) {
+        m_waitingForAuthorization = true;
+        m_authorizationElapsed.start();
+        qInfo().noquote() << "Waiting for Android RSA authorization at" << m_serial;
+        emit authorizationRequired(m_serial);
+    }
+    if (generation == m_connectionGeneration && m_waitingForAuthorization) {
+        m_authorizationTimer.start();
+    }
 }
 
 void AdbBridge::verifyTransport(const quint64 generation)
@@ -601,6 +652,8 @@ void AdbBridge::verifyTransport(const quint64 generation)
                     m_connectCommandRunning = false;
                     if (result.exitCode == 0
                         && QString::fromUtf8(result.standardOutput).trimmed() == QStringLiteral("device")) {
+                        m_authorizationTimer.stop();
+                        m_waitingForAuthorization = false;
                         m_connected = true;
                         emit connected(m_serial);
                         waitForBoot();
@@ -609,8 +662,17 @@ void AdbBridge::verifyTransport(const quint64 generation)
 
                     const QString state = QString::fromUtf8(result.standardOutput).trimmed();
                     const QString detail = resultMessage(result);
-                    if (detail.contains(QStringLiteral("offline"), Qt::CaseInsensitive)
-                        || detail.contains(QStringLiteral("unauthorized"), Qt::CaseInsensitive)) {
+                    if (detail.contains(QStringLiteral("unauthorized"), Qt::CaseInsensitive)) {
+                        waitForAuthorization(generation);
+                        return;
+                    }
+                    if (m_waitingForAuthorization) {
+                        m_authorizationTimer.stop();
+                        m_waitingForAuthorization = false;
+                        emit errorOccurred(QStringLiteral("ADB authorization transport at %1 was lost: %2. Check the guest before restarting DroidBox.").arg(m_serial, detail));
+                        return;
+                    }
+                    if (detail.contains(QStringLiteral("offline"), Qt::CaseInsensitive)) {
                         m_connectTimer.stop();
                         emit errorOccurred(QStringLiteral("Android ADB at %1 is unavailable: %2. "
                             "Check the guest IP address, TCP port 5555 listener, and any RSA authorization prompt. "

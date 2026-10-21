@@ -21,12 +21,13 @@ packaging items below remain work for Phase 6.
 
 | Component | Version | License | How Used | Compliance |
 |---|---|---|---|---|
-| **QEMU** | 8.x | **GPLv2** | VM engine; `qemu-system-x86_64.exe` bundled | Dynamically linked. Full source code available at [qemu.org/download](https://www.qemu.org/download/). Source offer included in installer's license dialog. |
-| **Qt 6** | 6.5+ | **LGPL v3** | UI framework; DLLs bundled alongside DroidBox.exe | **Dynamically linked** (user can replace Qt DLLs). Qt source available at [qt.io](https://www.qt.io/download-open-source). Source offer in installer. |
-| **Bliss OS** | latest | **Apache 2.0** | Android-x86 distribution; pre-installed qcow2 image | Apache 2.0 notice included. Bliss OS source at [blissos.org](https://blissos.org/). |
+| **QEMU** | 11.1.0, Windows ar7 fork `e470268ff446ec56728215a987ed166d5ed8fb64` | **GPLv2**, with component-specific notices | Separate VM executable | Exact [builder source commit](https://repo.or.cz/qemu/ar7.git/commit/e470268ff446ec56728215a987ed166d5ed8fb64). A stock upstream 11.1.0 archive is not a substitute for this fork. Final source/dependency bundle remains a packaging requirement. |
+| **Qt 6** | 6.12.0 | **LGPL v3**, plus dependency licenses | UI framework; replaceable DLLs | Dynamically linked. Installed SBOMs identify qtbase `025bdad181de241e81bf853c8a2d7bf3d19261a9` and qtsvg `883a58532078d003cefef0a549bfe9f885ce41f5`; matching source archives collected locally. |
+| **Bliss OS** | 14.10.3 | **Mixed**: AOSP Apache 2.0, Linux GPLv2, and individual app/library licenses | Android-x86 distribution; qcow2 image | Preserve the distribution's notices and identify matching kernel/Android sources. It is not licensed solely under Apache 2.0. Local init/first-boot modifications are in `image-build/`. |
 | **Android platform-tools** (ADB) | 37.0.1 | **Apache 2.0** | `vm/adb/adb.exe` for guest communication | Upstream `vm/adb/NOTICE.txt` included. |
-| **F-Droid** | latest | **GPLv3** | Pre-installed app store in guest image | GPLv3 text included. Source at [f-droid.org](https://f-droid.org/). |
-| **MSVC Runtime** | 2022 | **Microsoft EULA** | C++ runtime redistributable | Distributed per Microsoft redistribution terms. |
+| **Neo Store** | 1.0.5 (`com.machiav3lli.fdroid`) | **GPLv3+** | Pre-installed F-Droid repository client | Actual client identified in the guest; [source project](https://github.com/NeoApplications/Neo-Store). Do not label it as the official F-Droid client. |
+| **microG GmsCore / Companion / GsfProxy** | 0.3.3.240913 / 0.3.3.40226 / v0.1.0 | **Apache 2.0**, plus bundled dependency notices | Free Android compatibility implementations already in the FOSS image | Guest components use `org.microg.*` classes. [GmsCore sources](https://github.com/microg/GmsCore), [GsfProxy sources](https://github.com/microg/GsfProxy). Shared package identifiers alone do not establish that proprietary Google apps are present. |
+| **MSVC Runtime** | v14; collected package 14.51.36247.0 | **Microsoft EULA** | C++ runtime redistributable | Retain package terms and verify redistribution rights for the installed Visual Studio license. |
 
 ---
 
@@ -35,7 +36,7 @@ packaging items below remain work for Phase 6.
 | Component | License | Purpose |
 |---|---|---|
 | CMake | BSD 3-Clause | Build system |
-| Inno Setup | Inno Setup License (freeware) | Installer compiler |
+| Inno Setup 6.7.3 | Inno Setup License | Installer compiler; verify applicable commercial-use terms |
 | Python 3 | PSF License | Image build scripts |
 | Visual Studio 2022 | Microsoft EULA | C++ compiler |
 
@@ -48,7 +49,8 @@ packaging items below remain work for Phase 6.
 - [x] DroidBox communicates with QEMU only via IPC (QMP socket, process launch)
 - [ ] Full GPLv2 license text included in `installer/licenses/QEMU-LICENSE.txt`
 - [ ] Source code offer included in installer's license screen
-- [x] QEMU modifications (if any) documented and source provided
+- [x] Exact Windows fork commit identified (not the older GitHub mirror tip)
+- [ ] Matching QEMU, dependency, firmware sources/notices included in final distribution
 
 ### Qt 6 (LGPL v3)
 - [x] Qt libraries are **dynamically linked** (`.dll` files)
@@ -57,26 +59,41 @@ packaging items below remain work for Phase 6.
 - [ ] Source code offer for Qt included in installer
 - [x] DroidBox's own source is available (MIT license)
 
-### Bliss OS (Apache 2.0)
+### Bliss OS (mixed licenses)
 - [ ] Apache 2.0 notice included
-- [x] No modifications to Bliss OS source (using pre-built images)
-- [x] If modified: changes documented
+- [x] Local startup/provisioning changes retained in `image-build/`
+- [ ] Original kernel/Android build provenance and full third-party notices included
 
-### F-Droid (GPLv3)
-- [ ] Pre-installed as an APK in the guest image
+### Neo Store (GPLv3+)
+- [x] Pre-installed `com.machiav3lli.fdroid` 1.0.5 identified
 - [ ] GPLv3 text included
-- [x] Source available at f-droid.org
+- [ ] Matching Neo Store source release and build/dependency information included
 
 ---
 
-## Draft Source Offer Statement (Phase 6 packaging task)
+## Source distribution status
 
-> DroidBox includes components licensed under GPLv2 (QEMU) and LGPL v3
-> (Qt 6). You may obtain the complete corresponding source code for these
-> components by visiting the URLs listed above, or by contacting
-> [your-email@example.com] for a physical copy (cost of distribution
-> applies). This offer is valid for three years from the date of
-> distribution.
+No source offer has been issued and no placeholder contact is valid. Installer
+implementation must provide the applicable complete corresponding sources and
+notices for the exact redistributed binaries, including required build files,
+local changes, submodules, and dependency components. A project homepage or an
+unrelated upstream release does not establish correspondence. Do not mark the
+unchecked packaging items complete until the final payload has been inspected.
+
+The Windows builder identifies its source repository as
+`https://repo.or.cz/qemu/ar7.git`, whose verified master ref was
+`e470268ff446ec56728215a987ed166d5ed8fb64` on 2026-10-21. This commit merges
+`v11.1.0` and matches the installed binary's `-ge470268ff4` suffix. The linked
+GitHub mirror's ar7 branch was older (`54e84cdc7af22e1b6f3f309fea25404fac17beec`),
+which explains the failed commit lookups there.
+
+The exact fork source tree, including `make-installers-all`, was exported through
+Git and validated locally as
+`qemu-ar7-e470268ff446ec56728215a987ed166d5ed8fb64.verified.tar.gz`.
+Its SHA-256 is
+`d917de0eab28e34c1e281a789b3a4c9878219bb54d7343cb4a07d33dbc79e660`.
+This identifies the QEMU source tree; required submodule/dependency source
+archives and notices still belong in the final installer release inventory.
 
 ---
 

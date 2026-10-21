@@ -18,6 +18,8 @@ grep -q '^ro.adb.secure=1$' "$system_root/system/etc/prop.default" || {
 
 install -o 0 -g 0 -m 0644 "$script_root/droidbox-adb.rc" "$system_root/system/etc/init/droidbox-adb.rc"
 setfattr -n security.selinux -v u:object_r:system_file:s0 "$system_root/system/etc/init/droidbox-adb.rc"
+install -o 0 -g 0 -m 0644 "$script_root/droidbox-first-boot.sh" "$system_root/system/etc/droidbox-first-boot.sh"
+setfattr -n security.selinux -v u:object_r:system_file:s0 "$system_root/system/etc/droidbox-first-boot.sh"
 
 if [ "$#" -eq 3 ]; then
     data_root=$(realpath "$2")

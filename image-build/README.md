@@ -119,7 +119,12 @@ An `offline` entry does not identify the cause. Check the guest itself:
 During image preparation, install [droidbox-adb.rc](droidbox-adb.rc) as
 `/system/etc/init/droidbox-adb.rc`, owned by root with mode `0644` and
 SELinux context `u:object_r:system_file:s0`. This starts TCP ADB after
-`sys.boot_completed=1` without requiring a USB gadget. Keep `ro.adb.secure=1`.
+`sys.boot_completed=1` without requiring a USB gadget. The helper also installs
+[droidbox-first-boot.sh](droidbox-first-boot.sh), invoked by init as the shell UID
+before TCP ADB starts. Starting adbd alone leaves the framework authorization
+manager disabled when `adb_enabled=0`; a new host then stays unauthorized without
+an RSA prompt. The script enables that manager with
+`settings put global adb_enabled 1`. Keep `ro.adb.secure=1`.
 Authorize the host through Android's RSA prompt, or provision that host's
 public key into `/data/misc/adb/adb_keys` (owner `1000:2000`, mode `0640`,
 context `u:object_r:adb_keys_file:s0`). Do not ship your personal key in a
@@ -246,3 +251,25 @@ Fresh instances use `vm/images/bliss-provisioned.qcow2`, prepared with
 image without changing `bliss-base.qcow2` or an existing instance's backing chain.
 See [Phase 5 image preparation and tests](../docs/PHASE-5-TESTING.md).
 Never distribute a local development base that authorizes a personal ADB public key.
+
+## Clean distribution base
+
+Build a new image without a host-key argument, preserving all existing bases:
+
+```powershell
+wsl -u root --exec sh image-build/prepare-instance-base.sh vm/images/bliss-base.qcow2 vm/images/bliss-distribution-v2.qcow2
+```
+
+The helper refuses to overwrite output. The clean image's data directory starts
+empty. On its first boot the shell script enables ADB authorization, sets the
+setup-completed flags, and chooses Bliss Launcher. It writes a marker in that
+instance's overlay so subsequent boots preserve the user's launcher choice.
+`ro.adb.secure=1` remains enabled; a new computer must be approved in Android's
+RSA dialog. The optional "Always allow" choice stores a public key only in that
+instance's overlay. No host private key belongs in a guest image.
+
+The desktop shows authorization instructions and observes the existing ADB
+transport until approval; it does not repeatedly reconnect while waiting.
+Package this clean image under the filename expected by the installed instance
+manager (`bliss-provisioned.qcow2`), with matching installed configuration.
+Never replace a development base while an existing overlay still backs onto it.

@@ -156,9 +156,14 @@ The main Windows application the user interacts with.
   reads the forwarded host port from the QEMU instance configuration, probes
   for a real ADB CNXN/AUTH packet before invoking `adb connect`, and verifies
   `adb get-state` reports
-  `device` before marking the guest connected. Offline or unauthorized
-  transports stop automatic retries and report guest network, listener, and
-  authorization checks. An open host forward alone does not prove that
+  `device` before marking the guest connected. Offline
+  transports stop automatic retries and report guest network/listener
+  checks. Unauthorized transports emit `authorizationRequired`, show guest
+  approval instructions in the status bar, and poll only the existing
+  transport's `get-state` for up to three minutes. They do not repeat
+  `adb connect` or disconnect while Android displays its RSA prompt. Approval
+  continues into the boot/Ready flow without restarting DroidBox.
+  An open host forward alone does not prove that
   Android's `adbd` is running. The provisioned guest uses
   `image-build/droidbox-adb.rc` to start authenticated TCP ADB on port 5555
   when Android finishes booting. It then polls
@@ -170,6 +175,14 @@ The main Windows application the user interacts with.
   discarded after disconnect or guest replacement.
   Guest commands target `localhost:<adbHostPort>`. The QEMU user-mode forward
   maps that configured host TCP port to guest TCP port 5555.
+
+  `image-build/droidbox-first-boot.sh` runs as Android's shell UID before the
+  explicit TCP daemon start. It enables the framework's ADB debugging manager
+  so RSA authorization works without pre-installed host keys, retaining
+  `ro.adb.secure=1`. On the first boot of each writable overlay it selects Bliss
+  Launcher and records completed setup; a marker prevents later boots from
+  replacing the user's launcher choice. `provision-adb-image.sh` installs and
+  labels both startup files in a new provisioned image.
 
 #### 1.9 `InstanceManager` (Phase 5, planned)
 - **What**: Manages multiple Android instances.
