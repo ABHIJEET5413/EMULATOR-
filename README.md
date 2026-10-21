@@ -18,9 +18,9 @@ Verification recorded on **21 October 2026**:
   recorded in [Phase 6 test results](docs/PHASE-6-TESTING.md).
 - The latest setup completed a silent install to a path containing spaces,
   passed the installer WHPX check, and launched bundled QEMU with the display
-  embedded. Its guest is waiting for ADB authorization; the latest artifact's
-  Android Home state is not yet verified. Earlier live guest checks passed APK,
-  file transfer, screenshot, and navigation operations.
+  embedded. The guest stayed unauthorized through the 180-second ADB approval
+  wait, so Android Home is not verified for this artifact. Earlier live guest
+  checks passed APK, file transfer, screenshot, and navigation operations.
 - Previous live checks verified Android boot, ADB authorization, multiple guests,
   and keyboard input isolation. See the acceptance records linked below.
 

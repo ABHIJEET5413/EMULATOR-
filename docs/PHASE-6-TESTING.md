@@ -39,9 +39,10 @@ public redistribution readiness.
   installed executable. The installed base image is 4,136,566,784 bytes and its
   SHA-256 matches the bundle manifest.
 - Launching the installed app started the bundled QEMU binary and embedded its
-  display. ADB reached Android RSA authorization, but the latest run is still
-  awaiting confirmation in the guest; `sys.boot_completed=1` has not yet been
-  verified for this artifact.
+  display. ADB reached Android RSA authorization, but the guest remained
+  `unauthorized` through the 180-second prompt wait and DroidBox timed out.
+  Accepting the guest prompt and restarting DroidBox are still required;
+  `sys.boot_completed=1` has not yet been verified for this artifact.
 - This account already had DroidBox data from earlier testing, so this run does
   not prove clean-account overlay initialization. The clean Windows/account
   checks below remain outstanding.
