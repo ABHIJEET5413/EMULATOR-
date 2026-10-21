@@ -13,10 +13,28 @@ Windows features. Run it explicitly when reviewing packaging.
 - Output: `installer/Output/DroidBoxSetup.exe`, **1,810,419,303 bytes**;
   the output directory contains no external payload files.
 - SHA-256: `503b8ac190d848a0ce4b02495abcea2d02585702b696a4cde45cf6c74a84ddc1`.
-- The installer and automated suites were not run in this implementation pass.
+- The installer has not been run. Automated validation results are recorded below.
   Installation, WHPX runtime checks, Android boot and uninstall remain manual
   acceptance items below. Public distribution still requires the source inventory
   review in `installer/BUILD.md`; this build records `releaseReady=false`.
+
+## Automated validation — 21 October 2026
+
+- Configured `cmake-build-phase6-fixes` with `BUILD_TESTING=ON` and rebuilt all
+  Release application/test targets: **passed**.
+- `ctest --test-dir cmake-build-phase6-fixes -C Release --output-on-failure`:
+  **8/8 passed, zero failures**, 21.20 seconds. Suites: installer_preflight,
+  vm_control_config, display_input, keymap, adb, instance_manager, phase5_ui,
+  native_keyboard. Qt 6.12.0's `bin` directory was added to this process's PATH.
+- `tests/test_installer.ps1 -BundlePath "$PWD/installer/bundle"`: **passed**;
+  all **3,397** staged file paths and SHA-256 hashes matched the manifest.
+- Rechecked the existing setup EXE: its size and SHA-256 match the successful
+  compiler build recorded above. The unchanged installer was not recompressed.
+- No implementation failures were found in these checks; no code fixes were needed.
+- Full installation/uninstallation and elevated WHPX checks were not executed.
+  This session is not elevated, approximately 5 GB of disk space is available,
+  and an existing development DroidBox/QEMU session is running. These results
+  do not complete the clean-machine, offline or guest acceptance checklist.
 
 ## Build/package
 
