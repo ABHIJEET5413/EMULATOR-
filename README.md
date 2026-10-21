@@ -8,6 +8,10 @@
 
 ## Key Features
 
+This table describes the project roadmap. Phases 1–4 have host code;
+multi-instance management, camera support, installer packaging, and Windows
+APK file association registration are planned for Phases 5–6.
+
 | Feature | Implementation |
 |---|---|
 | **Android VM** | Bliss OS (Android-x86) on QEMU + WHPX |
@@ -103,7 +107,7 @@ AI skill in `.agents/skills/`.
 ## License
 
 - **DroidBox host app**: MIT License
-- **QEMU**: GPLv2 — linked dynamically, source offer included
+- **QEMU**: GPLv2 — separate process; redistribution notices are tracked in docs/ATTRIBUTION.md
 - **Qt 6**: LGPL v3 — linked dynamically, source offer included
 - **Bliss OS**: Apache 2.0
 - **F-Droid**: GPLv3

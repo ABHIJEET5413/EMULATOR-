@@ -57,6 +57,12 @@ add_executable(DroidBox
 
 target_link_libraries(DroidBox PRIVATE droidbox_core)
 
+# Regenerate the development default on configuration, replacing stale test copies.
+file(GENERATE
+    OUTPUT "${CMAKE_BINARY_DIR}/$<CONFIG>/vm/configs/default-instance.json"
+    INPUT "${CMAKE_CURRENT_SOURCE_DIR}/../vm/configs/default-instance.json"
+)
+
 add_custom_command(TARGET DroidBox POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_CURRENT_SOURCE_DIR}/resources/keymaps"

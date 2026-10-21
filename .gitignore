@@ -14,6 +14,8 @@
 /vm/qemu/
 /vm/images/*.qcow2
 /instances/*/overlay.qcow2
+/instances/*/*.qcow2
+/vm/adb/
 
 # Runtime logs
 *.log

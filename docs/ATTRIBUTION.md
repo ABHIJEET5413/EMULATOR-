@@ -1,7 +1,8 @@
 # Attribution & Licenses
 
-> This document lists every third-party component bundled with or used by
-> DroidBox, its license, and what DroidBox itself contributes.
+This document tracks dependencies and planned redistribution notices.
+The installer and its license bundle have not been produced yet; unchecked
+packaging items below remain work for Phase 6.
 
 ---
 
@@ -45,30 +46,30 @@
 ### QEMU (GPLv2)
 - [x] QEMU is a **separate executable** — DroidBox does NOT link to QEMU code
 - [x] DroidBox communicates with QEMU only via IPC (QMP socket, process launch)
-- [x] Full GPLv2 license text included in `installer/licenses/QEMU-LICENSE.txt`
-- [x] Source code offer included in installer's license screen
+- [ ] Full GPLv2 license text included in `installer/licenses/QEMU-LICENSE.txt`
+- [ ] Source code offer included in installer's license screen
 - [x] QEMU modifications (if any) documented and source provided
 
 ### Qt 6 (LGPL v3)
 - [x] Qt libraries are **dynamically linked** (`.dll` files)
 - [x] User can replace Qt DLLs with their own build
-- [x] Full LGPL v3 text included in `installer/licenses/QT-LICENSE.txt`
-- [x] Source code offer for Qt included in installer
+- [ ] Full LGPL v3 text included in `installer/licenses/QT-LICENSE.txt`
+- [ ] Source code offer for Qt included in installer
 - [x] DroidBox's own source is available (MIT license)
 
 ### Bliss OS (Apache 2.0)
-- [x] Apache 2.0 notice included
+- [ ] Apache 2.0 notice included
 - [x] No modifications to Bliss OS source (using pre-built images)
 - [x] If modified: changes documented
 
 ### F-Droid (GPLv3)
-- [x] Pre-installed as an APK in the guest image
-- [x] GPLv3 text included
+- [ ] Pre-installed as an APK in the guest image
+- [ ] GPLv3 text included
 - [x] Source available at f-droid.org
 
 ---
 
-## Source Offer Statement
+## Draft Source Offer Statement (Phase 6 packaging task)
 
 > DroidBox includes components licensed under GPLv2 (QEMU) and LGPL v3
 > (Qt 6). You may obtain the complete corresponding source code for these

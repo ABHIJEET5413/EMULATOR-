@@ -107,39 +107,64 @@ Complete the Android setup wizard manually:
 Once Android is running, connect via ADB:
 
 ```powershell
+adb start-server
 adb connect localhost:5555
 ```
 
-If `adb connect` cannot reach the guest, enable **ADB over network** in the
-Bliss OS Developer options, then retry the connection. The guest must have
-ADB listening on TCP port 5555 before the host-side port forward can reach it.
-After the first connection, persist the port so later boots expose the same
-ADB service:
+An `offline` entry does not identify the cause. Check the guest itself:
+`ip addr`, `getprop init.svc.adbd`, `getprop service.adb.tcp.port`, and
+`ss -lnt`. The tested Bliss image had Ethernet address `10.0.2.15`, but
+`adbd` was stopped, `persist.sys.usb.config=none`, and no TCP listener.
+
+During image preparation, install [droidbox-adb.rc](droidbox-adb.rc) as
+`/system/etc/init/droidbox-adb.rc`, owned by root with mode `0644` and
+SELinux context `u:object_r:system_file:s0`. This starts TCP ADB after
+`sys.boot_completed=1` without requiring a USB gadget. Keep `ro.adb.secure=1`.
+Authorize the host through Android's RSA prompt, or provision that host's
+public key into `/data/misc/adb/adb_keys` (owner `1000:2000`, mode `0640`,
+context `u:object_r:adb_keys_file:s0`). Do not ship your personal key in a
+generic base image. Offline disk edits must use a stopped VM and an overlay;
+retain a backup and detach all mounts before QEMU starts.
+
+For an already mounted writable Android system-image root, the Linux helper
+applies the service and its ownership/security label:
+
+```sh
+sudo sh image-build/provision-adb-image.sh /mnt/android-system-root
+# Optional: authorize this development host in this instance's data directory.
+sudo sh image-build/provision-adb-image.sh /mnt/android-system-root /mnt/android-data /path/to/adbkey.pub
+```
+
+The helper requires `attr` (`setfattr`) and accepts mounted directories; it
+does not attach disks or stop QEMU. Run it only during offline image preparation.
+
+After repairing the service, make one connection attempt and verify
+`adb -s localhost:5555 get-state` prints `device`.
+
+After the connection shows `device`, persist remaining settings:
 
 ```powershell
-adb wait-for-device
-# Enable ADB over TCP permanently (so it survives reboot)
-adb shell setprop persist.adb.tcp.port 5555
-adb shell setprop service.adb.tcp.port 5555
+adb -s localhost:5555 shell setprop persist.adb.tcp.port 5555
+adb -s localhost:5555 shell setprop service.adb.tcp.port 5555
 
 # Set a fixed screen density (optional)
-adb shell wm density 240
+adb -s localhost:5555 shell wm density 240
 
 # Set a fixed resolution (optional)
-adb shell wm size 1080x1920
+adb -s localhost:5555 shell wm size 1080x1920
 
 # Disable the setup wizard so it doesn't show again
-adb shell settings put global device_provisioned 1
-adb shell settings put secure user_setup_complete 1
+adb -s localhost:5555 shell settings put global device_provisioned 1
+adb -s localhost:5555 shell settings put secure user_setup_complete 1
 
 # Install F-Droid
-adb install F-Droid.apk
+adb -s localhost:5555 install F-Droid.apk
 
 # Optional: Install Open Camera (from F-Droid APK)
-# adb install open-camera.apk
+# adb -s localhost:5555 install open-camera.apk
 
 # Optional: Set default launcher if needed
-# adb shell cmd package set-home-activity <component>
+# adb -s localhost:5555 shell cmd package set-home-activity <component>
 ```
 
 ### Step 6: Clean Up and Compact

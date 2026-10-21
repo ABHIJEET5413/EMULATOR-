@@ -36,7 +36,9 @@ int main(int argc, char* argv[])
                        InputHandler::keyCodeForQtKey(Qt::Key_Return) == 28);
     allPassed &= check(QStringLiteral("function and navigation keys map"),
                        InputHandler::keyCodeForQtKey(Qt::Key_F12) == 88
-                           && InputHandler::keyCodeForQtKey(Qt::Key_Left) == 105);
+                           && InputHandler::keyCodeForQtKey(Qt::Key_Left) == 0xcb
+                           && InputHandler::keyCodeForQtKey(Qt::Key_Delete) == 0xd3
+                           && InputHandler::keyCodeForQtKey(Qt::Key_Home) == 0xc7);
     allPassed &= check(QStringLiteral("unsupported keys are left to Qt/QEMU"),
                        InputHandler::keyCodeForQtKey(Qt::Key_unknown) == -1);
 

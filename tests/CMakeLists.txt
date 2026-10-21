@@ -64,3 +64,7 @@ add_test(NAME adb COMMAND test_adb)
 set_tests_properties(adb PROPERTIES
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
 )
+
+# Explicit opt-in only: this harness installs an APK into a running Android guest.
+add_executable(test_adb_live test_adb_live.cpp)
+target_link_libraries(test_adb_live PRIVATE droidbox_core Qt6::Core)

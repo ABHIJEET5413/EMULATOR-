@@ -10,6 +10,7 @@ This directory contains test executables for each phase.
 | `test_display_input.cpp` | Phase 2 | QMP pointer-coordinate scaling and Qt-to-QMP keycode mapping |
 | `test_keymap.cpp` | Phase 3 | Keymap JSON parsing, action dispatch |
 | `test_adb.cpp` | Phase 4 | ADB connection/recovery, install, push, media scan, screenshot, navigation |
+| `test_adb_live.cpp` | Phase 4 | Real guest connection, APK install, file push/media scan, screenshot, navigation |
 | `test_instance_manager.cpp` | Phase 5 | Instance CRUD, overlay creation |
 | `CMakeLists.txt` | All | Build config for all tests |
 
@@ -43,7 +44,15 @@ ctest --test-dir build -C Release --output-on-failure
 
 # Run the complete Phase 4 ADB bridge harness (no running guest required)
 .\build\Release\test_adb.exe
+
+# Live Phase 4 checks: start DroidBox and wait for Ready first.
+# This installs/reinstalls the APK you supply in that guest.
+.\build\Release\test_adb_live.exe --adb vm/adb/adb.exe --apk C:/path/to/app.apk
 ```
+
+The live harness is deliberately excluded from CTest because it requires a
+running authorized guest and installs an APK. CTest passing alone does not
+verify the Android image, toolbar dialogs, or native window drag and drop.
 
 ## Test Philosophy
 

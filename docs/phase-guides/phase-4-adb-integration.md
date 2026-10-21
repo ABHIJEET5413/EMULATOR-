@@ -381,19 +381,21 @@ vm\adb\adb.exe connect localhost:5555
 vm\adb\adb.exe devices
 
 # Wait for boot
-vm\adb\adb.exe shell getprop sys.boot_completed
+vm\adb\adb.exe -s localhost:5555 shell getprop sys.boot_completed
 
 # Send a key event
-vm\adb\adb.exe shell input keyevent 3
+vm\adb\adb.exe -s localhost:5555 shell input keyevent 3
 
 # Install an APK
-vm\adb\adb.exe install -r some-app.apk
+vm\adb\adb.exe -s localhost:5555 install -r some-app.apk
 
 # Push a file
-vm\adb\adb.exe push test.jpg /sdcard/Download/
+vm\adb\adb.exe -s localhost:5555 push test.jpg /sdcard/Download/
 
 # Take a screenshot
-vm\adb\adb.exe exec-out screencap -p > screenshot.png
+# Preserve binary PNG bytes on Windows PowerShell 5.1 as well as PowerShell 7.
+vm\adb\adb.exe -s localhost:5555 shell screencap -p /sdcard/Download/screenshot.png
+vm\adb\adb.exe -s localhost:5555 pull /sdcard/Download/screenshot.png screenshot.png
 ```
 
 If any of these fail, fix the VM/network config before coding the integration.

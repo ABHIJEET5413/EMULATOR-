@@ -218,7 +218,7 @@ void KeymapEngine::executeSwipe(const Qt::Key key, const KeyAction& action)
     const QPoint start = scaleCoords(action.startX, action.startY);
     const QPoint end = scaleCoords(action.endX, action.endY);
     const int steps = qBound(2,
-                             (action.durationMs + kSwipeFrameMs - 1) / kSwipeFrameMs,
+                             1 + (action.durationMs - 1) / kSwipeFrameMs,
                              kMaxSwipeFrames);
 
     SwipeState state;

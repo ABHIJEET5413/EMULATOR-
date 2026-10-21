@@ -108,6 +108,21 @@ int main(int argc, char* argv[])
                            && reloadedProfile->actionForKey(Qt::Key_Space)->type == KeyAction::Tap);
 
     const QStringList availableProfiles = KeymapEngine::listProfiles(profileDirectory);
+    KeymapProfile punctuationProfile;
+    punctuationProfile.resolution = QSize(1080, 1920);
+    const QList<Qt::Key> punctuationKeys{Qt::Key_Minus, Qt::Key_Equal, Qt::Key_Slash,
+                                        Qt::Key_PageUp, Qt::Key_PageDown};
+    for (const Qt::Key key : punctuationKeys) {
+        KeyAction action;
+        action.type = KeyAction::Passthrough;
+        punctuationProfile.bindings.insert(key, action);
+    }
+    const QString punctuationPath = temporaryDirectory.filePath(QStringLiteral("punctuation.json"));
+    const bool punctuationSaved = punctuationProfile.saveToFile(punctuationPath, &errorMessage);
+    const auto punctuationReloaded = KeymapProfile::loadFromFile(punctuationPath, &errorMessage);
+    allPassed &= check(QStringLiteral("punctuation and page keys survive profile save and reload"),
+                       punctuationSaved && punctuationReloaded
+                           && punctuationReloaded->bindings.size() == punctuationKeys.size());
     allPassed &= check(QStringLiteral("profile listing finds both bundled profiles"),
                        availableProfiles.size() == 2
                            && availableProfiles.contains(defaultPath)

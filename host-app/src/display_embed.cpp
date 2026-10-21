@@ -115,8 +115,8 @@ bool DisplayEmbed::embedWindow(const quintptr windowHandle, QString* errorMessag
                       nullptr,
                       0,
                       0,
-                      width(),
-                      height(),
+                      qMax(1, qRound(width() * devicePixelRatioF())),
+                      qMax(1, qRound(height() * devicePixelRatioF())),
                       SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED | SWP_SHOWWINDOW)) {
         SetParent(window, originalParent);
         SetWindowLongPtrW(window, GWL_STYLE, originalStyle);

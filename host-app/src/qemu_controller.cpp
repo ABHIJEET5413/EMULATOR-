@@ -86,6 +86,10 @@ QemuController::~QemuController()
 
 bool QemuController::start(const QString& configPath)
 {
+    if (m_snapshotProcess.state() != QProcess::NotRunning) {
+        reportError(QStringLiteral("Wait for the disk snapshot operation to finish before starting QEMU."));
+        return false;
+    }
     if (isRunning()) {
         reportError(QStringLiteral("QEMU is already running."));
         return false;
@@ -481,6 +485,10 @@ void QemuController::handleStandardError()
         return;
     }
     m_standardError.append(data);
+    constexpr qsizetype maxDiagnosticBytes = 256 * 1024;
+    if (m_standardError.size() > maxDiagnosticBytes) {
+        m_standardError.remove(0, m_standardError.size() - maxDiagnosticBytes);
+    }
     const QString text = QString::fromLocal8Bit(data).trimmed();
     if (!text.isEmpty()) {
         qWarning().noquote() << "QEMU:" << text;
@@ -564,7 +572,8 @@ QString QemuController::resolveRuntimePath(const QString& path,
     const QStringList baseDirectories{
         QCoreApplication::applicationDirPath(),
         QDir::currentPath(),
-        configDirectory
+        configDirectory,
+        QDir(QCoreApplication::applicationDirPath()).absoluteFilePath(QStringLiteral("../.."))
     };
     for (const QString& baseDirectory : baseDirectories) {
         if (baseDirectory.isEmpty()) {

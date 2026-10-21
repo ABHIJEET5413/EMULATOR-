@@ -45,7 +45,7 @@
 The main Windows application the user interacts with.
 
 #### Entry point and logging (Phase 1)
-- `src/main.cpp` creates the headless `QCoreApplication` entry point.
+- `src/main.cpp` creates the Qt Widgets `QApplication` and `MainWindow`.
 - A Qt message handler writes timestamped messages to `droidbox.log`
   under the user's application-local data directory and to stderr.
 - The Phase 1 CLI test harness is the way to exercise VM controls; the
@@ -138,6 +138,8 @@ The main Windows application the user interacts with.
   parameters; missing optional fields use the guide's defaults. Key names
   are converted to Qt keys, and profile coordinates are scaled before they
   are normalized to QMP's absolute input range.
+  Numeric keyboard events use QMP's XT set-1 values, including extended
+  navigation keys; they are not Linux input event keycodes.
 
 #### 1.8 `AdbBridge` (Phase 4)
 - **What**: Manages the host ADB process and guest Android connection state.
@@ -145,20 +147,27 @@ The main Windows application the user interacts with.
   navigation controls, media indexing, and Android shell commands.
 - **How**: Locates `adb.exe` beside the application in `vm/adb` or `adb`,
   then falls back to `PATH`. Each operation runs asynchronously in its own
-  `QProcess`. On VM start it launches the ADB server, reads the forwarded host
-  port from the QEMU instance configuration, retries `adb connect` every two
-  seconds, and verifies `adb get-state` reports `device` before marking the
-  guest connected. Offline transports are disconnected and retried; a clear
-  error is shown if the guest's ADB-over-TCP service is not enabled. It then
-  polls `shell getprop sys.boot_completed` until Android is ready. A health
-  poll detects disconnects and reconnects. APK installation uses
-  `adb install -r`; file transfer uses `adb push` followed by Android's
-  media-scanner broadcast; screenshots use `exec-out screencap -p` and are
-  saved atomically as PNG. Guest commands target `localhost:<adbHostPort>`.
-  The QEMU user-mode forward maps that configured host TCP port to guest TCP
-  port 5555.
+  `QProcess`. On VM start it starts the shared ADB server without killing
+  other applications' ADB sessions,
+  reads the forwarded host port from the QEMU instance configuration, probes
+  for a real ADB CNXN/AUTH packet before invoking `adb connect`, and verifies
+  `adb get-state` reports
+  `device` before marking the guest connected. Offline or unauthorized
+  transports stop automatic retries and report guest network, listener, and
+  authorization checks. An open host forward alone does not prove that
+  Android's `adbd` is running. The provisioned guest uses
+  `image-build/droidbox-adb.rc` to start authenticated TCP ADB on port 5555
+  when Android finishes booting. It then polls
+  `shell getprop sys.boot_completed` until Android is ready. A health poll
+  detects disconnects and reconnects. APK installation uses `adb install -r`;
+  file transfer uses `adb push` followed by Android's media-scanner broadcast;
+  screenshots use `exec-out screencap -p`, validate PNG decoding, and are
+  saved atomically. Callbacks from an earlier connection generation are
+  discarded after disconnect or guest replacement.
+  Guest commands target `localhost:<adbHostPort>`. The QEMU user-mode forward
+  maps that configured host TCP port to guest TCP port 5555.
 
-#### 1.9 `InstanceManager` (Phase 5)
+#### 1.9 `InstanceManager` (Phase 5, planned)
 - **What**: Manages multiple Android instances.
 - **Why**: Users may want multiple instances (different apps, accounts).
 - **How**: Each instance = one JSON config + one qcow2 overlay.
@@ -166,7 +175,7 @@ The main Windows application the user interacts with.
   creates a copy-on-write overlay per instance. Factory reset =
   delete the overlay and create a new one.
 
-#### 1.10 `SettingsManager` (Phase 5)
+#### 1.10 `SettingsManager` (Phase 5, planned)
 - **What**: Per-instance settings (CPU cores, RAM, resolution, DPI).
 - **Why**: Different apps need different resources.
 - **How**: JSON file per instance in `instances/<name>/config.json`.
@@ -242,6 +251,9 @@ The main Windows application the user interacts with.
   not require a running VM or the Android SDK platform-tools. All four phase
   harnesses are registered with CTest; its Phase 1 entry checks configuration
   loading, while the VM lifecycle variants remain explicit hardware tests.
+- `test_adb_live.cpp` (Phase 4): Explicit real-guest checks for authenticated
+  connection, APK install, file push/media scan, screenshot, and navigation.
+  Not registered with CTest because it installs an APK into a running guest.
 - Later phases add standalone harnesses for instance management.
 
 ---
@@ -267,8 +279,8 @@ Show success in the status bar or the ADB error in a dialog
 QemuController::vmStarted -> AdbBridge::connectToGuest(localhost, adbHostPort)
         |
         +-- adb start-server
-        +-- retry adb connect localhost:<adbHostPort> every 2 seconds
-        +-- verify adb get-state reports device; reset and retry offline transports
+        +-- wait for guest CNXN/AUTH protocol response, then adb connect
+        +-- verify adb get-state reports device; stop on offline/unauthorized transports
         +-- poll sys.boot_completed and report Ready
         +-- poll device health and reconnect after a disconnect
 

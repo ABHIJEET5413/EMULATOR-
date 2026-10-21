@@ -405,5 +405,13 @@ Qt::Key KeymapProfile::parseKeyName(const QString& name)
         const int functionKeyNumber = functionKeyMatch.captured(1).toInt();
         return static_cast<Qt::Key>(Qt::Key_F1 + functionKeyNumber - 1);
     }
+    // saveToFile uses Qt's portable spelling, including punctuation and PgUp/PgDown.
+    const QKeySequence sequence = QKeySequence::fromString(name, QKeySequence::PortableText);
+    if (sequence.count() == 1 && sequence[0].keyboardModifiers() == Qt::NoModifier) {
+        const Qt::Key key = sequence[0].key();
+        if (key != Qt::Key_unknown && key != static_cast<Qt::Key>(0)) {
+            return key;
+        }
+    }
     return Qt::Key_unknown;
 }

@@ -101,6 +101,7 @@ private:
                         Completion completion = {},
                         bool useGuestSerial = true);
     void startAdbServer(quint64 generation);
+    void probeGuestListener(quint64 generation);
     void tryConnect(quint64 generation);
     void verifyTransport(quint64 generation);
     void pollBootStatus(quint64 generation);

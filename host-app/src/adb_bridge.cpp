@@ -3,10 +3,13 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QLoggingCategory>
+#include <QImage>
 #include <QProcess>
 #include <QSaveFile>
 #include <QStandardPaths>
 #include <QUrl>
+#include <QTcpSocket>
+#include <QtEndian>
 
 #include "adb_bridge.h"
 
@@ -29,7 +32,7 @@ AdbBridge::AdbBridge(QObject* parent)
     m_healthTimer.setInterval(kHealthPollIntervalMs);
 
     connect(&m_connectTimer, &QTimer::timeout, this, [this]() {
-        tryConnect(m_connectionGeneration);
+        probeGuestListener(m_connectionGeneration);
     });
     connect(&m_bootPollTimer, &QTimer::timeout, this, [this]() {
         pollBootStatus(m_connectionGeneration);
@@ -248,9 +251,12 @@ void AdbBridge::screenshot(const QString& savePath)
                 30000,
                 [this, absolutePath](const AdbResult& result) {
                     static const QByteArray pngSignature("\x89PNG\r\n\x1a\n", 8);
-                    if (result.exitCode != 0 || !result.standardOutput.startsWith(pngSignature)) {
+                    if (result.exitCode != 0 || !result.standardOutput.startsWith(pngSignature)
+                        || QImage::fromData(result.standardOutput, "PNG").isNull()) {
                         emit errorOccurred(QStringLiteral("Screenshot failed: %1")
-                                               .arg(resultMessage(result)));
+                                               .arg(result.exitCode == 0
+                                                        ? QStringLiteral("Android returned invalid PNG data.")
+                                                        : resultMessage(result)));
                         return;
                     }
 
@@ -392,7 +398,8 @@ quint64 AdbBridge::runAdbAsync(const QStringList& arguments,
     timeoutTimer->setSingleShot(true);
     auto completed = std::make_shared<bool>(false);
     auto timedOut = std::make_shared<bool>(false);
-    const auto finish = [this, process, timeoutTimer, completed, completion, id, binaryOutput](const AdbResult& result) {
+    const quint64 generation = m_connectionGeneration;
+    const auto finish = [this, process, timeoutTimer, completed, completion, id, binaryOutput, generation](const AdbResult& result) {
         if (*completed) {
             return;
         }
@@ -402,7 +409,7 @@ quint64 AdbBridge::runAdbAsync(const QStringList& arguments,
                              result.exitCode,
                              binaryOutput ? QString() : QString::fromUtf8(result.standardOutput).trimmed(),
                              QString::fromUtf8(result.standardError).trimmed());
-        if (completion) {
+        if (completion && generation == m_connectionGeneration) {
             completion(result);
         }
         process->deleteLater();
@@ -455,9 +462,85 @@ void AdbBridge::startAdbServer(const quint64 generation)
                                                .arg(resultMessage(result)));
                         return;
                     }
-                    tryConnect(generation);
+                    probeGuestListener(generation);
                 },
                 false);
+}
+
+void AdbBridge::probeGuestListener(const quint64 generation)
+{
+    if (generation != m_connectionGeneration || m_connected || m_connectCommandRunning) {
+        return;
+    }
+    m_connectTimer.stop();
+    if (m_connectAttempts >= kMaxConnectAttempts) {
+        emit errorOccurred(QStringLiteral("Android's ADB service at %1 did not answer its protocol handshake. "
+            "Check the guest IP, init.svc.adbd, and the TCP 5555 listener.").arg(m_serial));
+        return;
+    }
+    ++m_connectAttempts;
+    m_connectCommandRunning = true;
+    auto* socket = new QTcpSocket(this);
+    auto* timeout = new QTimer(socket);
+    timeout->setSingleShot(true);
+    auto done = std::make_shared<bool>(false);
+    auto received = std::make_shared<QByteArray>();
+    const auto finish = [this, socket, timeout, done, generation](const bool ready) {
+        if (*done) {
+            return;
+        }
+        *done = true;
+        timeout->stop();
+        socket->abort();
+        socket->deleteLater();
+        if (generation != m_connectionGeneration) {
+            return;
+        }
+        m_connectCommandRunning = false;
+        if (ready) {
+            tryConnect(generation);
+        } else {
+            m_connectTimer.start(kConnectIntervalMs);
+        }
+    };
+    connect(socket, &QTcpSocket::connected, this, [socket]() {
+        // A TCP accept from QEMU alone is insufficient: ask adbd for a CNXN/AUTH reply.
+        const QByteArray banner("host::droidbox\0", 15);
+        QByteArray packet;
+        const auto appendWord = [&packet](quint32 word) {
+            const quint32 little = qToLittleEndian(word);
+            packet.append(reinterpret_cast<const char*>(&little), sizeof(little));
+        };
+        quint32 checksum = 0;
+        for (const unsigned char byte : banner) {
+            checksum += byte;
+        }
+        appendWord(0x4e584e43); // CNXN
+        appendWord(0x01000000);
+        appendWord(4096);
+        appendWord(static_cast<quint32>(banner.size()));
+        appendWord(checksum);
+        appendWord(0x4e584e43 ^ 0xffffffffU);
+        packet.append(banner);
+        socket->write(packet);
+    });
+    connect(socket, &QTcpSocket::readyRead, this, [socket, received, finish]() {
+        received->append(socket->readAll());
+        if (received->size() < 24) {
+            return;
+        }
+        const auto* data = reinterpret_cast<const uchar*>(received->constData());
+        const quint32 command = qFromLittleEndian<quint32>(data);
+        const quint32 magic = qFromLittleEndian<quint32>(data + 20);
+        finish((command == 0x4e584e43 || command == 0x48545541)
+               && magic == (command ^ 0xffffffffU));
+    });
+    connect(socket, &QTcpSocket::errorOccurred, this,
+            [finish](QAbstractSocket::SocketError) { finish(false); });
+    connect(socket, &QTcpSocket::disconnected, this, [finish]() { finish(false); });
+    connect(timeout, &QTimer::timeout, this, [finish]() { finish(false); });
+    timeout->start(4000);
+    socket->connectToHost(m_host, static_cast<quint16>(m_port));
 }
 
 void AdbBridge::tryConnect(const quint64 generation)
@@ -474,7 +557,6 @@ void AdbBridge::tryConnect(const quint64 generation)
         return;
     }
 
-    ++m_connectAttempts;
     m_connectCommandRunning = true;
     runAdbAsync({QStringLiteral("connect"), m_serial}, 5000,
                 [this, generation](const AdbResult& result) {
@@ -526,8 +608,17 @@ void AdbBridge::verifyTransport(const quint64 generation)
                     }
 
                     const QString state = QString::fromUtf8(result.standardOutput).trimmed();
-                    qWarning().noquote() << "ADB transport for" << m_serial
-                                         << "is not ready (" << resultMessage(result) << "); retrying.";
+                    const QString detail = resultMessage(result);
+                    if (detail.contains(QStringLiteral("offline"), Qt::CaseInsensitive)
+                        || detail.contains(QStringLiteral("unauthorized"), Qt::CaseInsensitive)) {
+                        m_connectTimer.stop();
+                        emit errorOccurred(QStringLiteral("Android ADB at %1 is unavailable: %2. "
+                            "Check the guest IP address, TCP port 5555 listener, and any RSA authorization prompt. "
+                            "Automatic reconnect has stopped; repair the guest before restarting DroidBox.")
+                            .arg(m_serial, detail));
+                        return;
+                    }
+
                     runAdbAsync({QStringLiteral("disconnect"), m_serial}, 5000,
                                 [this, generation, state](const AdbResult& disconnectResult) {
                                     if (generation != m_connectionGeneration) {

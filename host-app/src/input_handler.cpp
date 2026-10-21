@@ -246,7 +246,7 @@ int InputHandler::scaleToQmpAxis(const int coordinate, const int extent)
 
 int InputHandler::keyCodeForQtKey(const int qtKey)
 {
-    // QMP numeric KeyValue values use Linux input keycodes (Enter is 28).
+    // QMP number values use XT set-1 codes with bit 7 marking extended keys.
     if (qtKey >= Qt::Key_A && qtKey <= Qt::Key_Z) {
         static constexpr int letterCodes[] = {
             30, 48, 46, 32, 18, 33, 34, 35, 23, 36, 37, 38, 50,
@@ -286,20 +286,20 @@ int InputHandler::keyCodeForQtKey(const int qtKey)
     case Qt::Key_CapsLock: return 58;
     case Qt::Key_F11: return 87;
     case Qt::Key_F12: return 88;
-    case Qt::Key_Print: return 99;
-    case Qt::Key_Home: return 102;
-    case Qt::Key_Up: return 103;
-    case Qt::Key_PageUp: return 104;
-    case Qt::Key_Left: return 105;
-    case Qt::Key_Right: return 106;
-    case Qt::Key_End: return 107;
-    case Qt::Key_Down: return 108;
-    case Qt::Key_PageDown: return 109;
-    case Qt::Key_Insert: return 110;
-    case Qt::Key_Delete: return 111;
-    case Qt::Key_Pause: return 119;
-    case Qt::Key_Meta: return 125;
-    case Qt::Key_Menu: return 127;
+    case Qt::Key_Print: return 0xb7;
+    case Qt::Key_Home: return 0xc7;
+    case Qt::Key_Up: return 0xc8;
+    case Qt::Key_PageUp: return 0xc9;
+    case Qt::Key_Left: return 0xcb;
+    case Qt::Key_Right: return 0xcd;
+    case Qt::Key_End: return 0xcf;
+    case Qt::Key_Down: return 0xd0;
+    case Qt::Key_PageDown: return 0xd1;
+    case Qt::Key_Insert: return 0xd2;
+    case Qt::Key_Delete: return 0xd3;
+    case Qt::Key_Pause: return 0xc6;
+    case Qt::Key_Meta: return 0xdb;
+    case Qt::Key_Menu: return 0xdd;
     default: return -1;
     }
 }

@@ -48,7 +48,7 @@ public:
     /** Convert a widget coordinate to QMP's 0..32767 absolute range. */
     static int scaleToQmpAxis(int coordinate, int extent);
 
-    /** Map a Qt key to the Linux input keycode used by QMP numeric key values. */
+    /** Map a Qt key to QMP's XT set-1 numeric key value. */
     static int keyCodeForQtKey(int qtKey);
 
 protected:
