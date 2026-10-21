@@ -77,7 +77,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File installer/scripts/build-inst
 ```
 
 Output: **`installer/Output/DroidBoxSetup.exe`**, followed by its SHA-256.
-No external `.bin` files. Compression may take several minutes.
+No external `.bin` files. Solid `lzma2/ultra64` compression can take a long
+time: it took about 35 minutes on the acceptance PC. The output EXE grows during
+compilation; do not install or copy it until ISCC and the build script report
+success. Interrupted output is incomplete and must be rebuilt.
 Use `-IsccPath "C:/path/to/ISCC.exe"` for another compiler location.
 
 Direct compiler equivalent after staging:

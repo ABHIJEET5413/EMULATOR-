@@ -9,26 +9,27 @@ runtime dependencies into one `DroidBoxSetup.exe`.
 
 ## Current status
 
-Verification recorded on **21 October 2026**:
+Verification recorded on **21–22 October 2026**:
 
 - Release application and test targets build with MSVC 2022 and Qt 6.12.0.
 - All **10 registered CTest suites pass**, with zero failures.
 - Installer preflight verified **3,399 staged file paths and SHA-256 hashes**.
-- Latest local Inno Setup output is **1,810,475,806 bytes**; SHA-256 and test scope are
+- Latest local Inno Setup output is **1,810,387,794 bytes**; SHA-256 and test scope are
   recorded in [Phase 6 test results](docs/PHASE-6-TESTING.md).
-- The latest setup completed a silent install to a path containing spaces,
-  passed the installer WHPX check, and launched bundled QEMU with the display
-  embedded. The guest stayed unauthorized through the 180-second ADB approval
-  wait, so Android Home is not verified for this artifact. Earlier live guest
-  checks passed APK, file transfer, screenshot, and navigation operations.
+- The latest setup completed a silent in-place upgrade to a path containing
+  spaces, passed the WHPX startup check, and launched its bundled QEMU with the
+  display embedded. Android 11 reached Home, ADB reported `device`, and
+  `sys.boot_completed=1`. The window opens 900 pixels wide for first-run dialogs.
+  This was tested on one configured PC, not a clean Windows machine.
 - Previous live checks verified Android boot, ADB authorization, multiple guests,
   and keyboard input isolation. See the acceptance records linked below.
 
-**Still pending:** clean-machine offline installation, upgrade/data-retention
-acceptance, guest RSA authorization for the latest installer run, and the
-complete third-party source/notices review for public distribution. The latest
-installer acceptance copy remains installed under the local user's AppData;
-automated test results do not complete those checks.
+**Still pending:** clean-machine offline installation, first-run RSA approval on
+a fresh guest, A/B application-data retention checks, and the completed
+third-party source/notices review. The local profile already had data and an
+authorized ADB key; its QEMU path was updated for this parallel install.
+`installer/release-inventory.json` is absent, so public redistribution is not
+approved. The setup EXE is a local build artifact and is not on GitHub.
 Webcam passthrough remains experimental and unverified; a test-pattern camera
 is unavailable in the bundled QEMU build.
 
@@ -509,7 +510,7 @@ AGENTS.md                 Repository working instructions
 | [3: Keymap Engine](docs/phase-guides/phase-3-keymap-engine.md) | JSON profiles and five key actions. | Implemented; graphical editor and mouse-look unavailable. |
 | [4: ADB Integration](docs/phase-guides/phase-4-adb-integration.md) | APK install, file push, navigation, screenshot. | Implemented; investigation/fixes recorded in the audit. |
 | [5: Multi-Instance](docs/phase-guides/phase-5-multi-instance.md) | Instance management, settings, camera evaluation. | Implemented; live multi-guest/input checks recorded, camera limits documented. |
-| [6: Offline Installer](docs/phase-guides/phase-6-installer.md) | Single-EXE packaging and Windows integration. | Implemented and compiled; automated checks pass; manual installer acceptance pending. |
+| [6: Offline Installer](docs/phase-guides/phase-6-installer.md) | Single-EXE packaging and Windows integration. | Compiled and installed; guest boot verified on one configured PC; clean-machine and distribution review remain. |
 
 Further reading:
 

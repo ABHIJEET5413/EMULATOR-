@@ -98,7 +98,9 @@ The main Windows application the user interacts with.
   events. Screenshot and APK buttons open file dialogs. Dropped APKs are
   installed, other dropped files are copied to `/sdcard/Download/`, and an
   APK path passed on the command line is installed after Android is ready.
-  It also shows user-facing errors and requests VM shutdown before closing.
+  It opens 900 pixels wide by default so Android's first-run approval dialogs
+  fit beside the vertical toolbar. It also shows user-facing errors and
+  requests VM shutdown before closing.
   Fullscreen toggles immediately.
 
 #### 1.4 `DisplayEmbed` (Phase 2)

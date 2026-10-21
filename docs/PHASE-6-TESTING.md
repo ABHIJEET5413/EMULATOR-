@@ -4,11 +4,11 @@ Build the offline package with [installer/BUILD.md](../installer/BUILD.md).
 Build success and automated checks do not certify a clean-machine install or
 public redistribution readiness.
 
-## Results recorded 21 October 2026
+## Results recorded 21–22 October 2026
 
 - MSVC 2022 / Qt 6.12.0 Release application and test targets built.
 - CTest: **10/10 suites passed** (including `launch_channel` and
-  `whpx_script`); the latest run took 28.33 seconds.
+  `whpx_script`); the run after the startup-window change took 32.52 seconds.
 - Instance manager regression harness: **45 checks passed**, including
   wildcard IPv4/IPv6 port collision detection.
 - WHPX PowerShell regression tests: passed, covering direct `-File` invocation
@@ -23,36 +23,42 @@ public redistribution readiness.
   capture/decoding, and Android navigation key events against that guest.
 - The package preflight verified all **3,399** staged paths and hashes.
 - Latest local setup artifact: `installer/Output/DroidBoxSetup.exe`,
-  **1,810,475,806 bytes**, SHA-256
-  `c2ad66f0ec7d68cb5ac51ed2b8ec1ed520a5165b8719a72cebaF022e7e49afeb`.
+  **1,810,387,794 bytes**, SHA-256
+  `057e2ecfd75986d81d1d7328328f77c48e2a244c04204b9472d41a8446ad7055`.
   Generated installer output is ignored by Git and is not part of the source
   repository.
 
-### Latest rebuilt installer run
+### Latest rebuilt installer run (22 October)
 
-- The exact setup artifact above completed a silent install into
+- The exact setup artifact above completed a silent in-place upgrade at
   `%LOCALAPPDATA%\DroidBoxAcceptance\Final Install`, a path containing spaces.
-  Inno logged `Installation process succeeded`; the bundled WHPX check returned
-  exit code 0 (`Windows Hypervisor Platform is enabled`).
-- The installer initialized per-user DroidBox data, created the machine Start
-  Menu and Public Desktop shortcuts, and registered the `.apk` command to the
-  installed executable. The installed base image is 4,136,566,784 bytes and its
-  SHA-256 matches the bundle manifest.
-- Launching the installed app started the bundled QEMU binary and embedded its
-  display. ADB reached Android RSA authorization, but the guest remained
-  `unauthorized` through the 180-second prompt wait and DroidBox timed out.
-  Accepting the guest prompt and restarting DroidBox are still required;
-  `sys.boot_completed=1` has not yet been verified for this artifact.
-- This account already had DroidBox data from earlier testing, so this run does
-  not prove clean-account overlay initialization. The clean Windows/account
-  checks below remain outstanding.
+  Inno logged `Installation process succeeded`; the bundled VC++ runtime needed
+  no restart. The package preflight had verified all **3,399** staged files.
+- The Start Menu and Public Desktop shortcuts exist, and the machine `.apk`
+  command points to the installed executable. The installed base image is
+  4,136,566,784 bytes and its SHA-256 (`f46bc328…838a090d`) matches the bundle
+  manifest.
+- Launching the upgraded app started QEMU from the new install directory and
+  embedded the guest display. The existing profile referred to a different,
+  older parallel install path; I backed it up and changed only `qemuPath` to
+  this install before launch. This test therefore does not verify automatic
+  migration of a profile when the install directory changes.
+- The installed app window opens with a 900-pixel client width (915 pixels
+  outer width on this desktop). ADB reached `device`; the guest reported
+  `sys.boot_completed=1`, Android 11, and the Bliss launcher. A screenshot
+  confirmed the Android Home screen. The existing overlay remained usable.
+- This account had prior DroidBox data and an authorized ADB key. These results
+  do not prove first-run RSA authorization or clean-account overlay creation.
 
-These checks were performed on one already-configured PC. They do not establish
-that installation works on a clean, disconnected Windows machine. The acceptance
-installation is still present at the path above. A/B upgrade and retained
-user-data checks were not completed. Public redistribution remains
-blocked on completing the source, notices, and license inventory described in
-[installer/BUILD.md](../installer/BUILD.md).
+These checks were performed on one already-configured PC, with network access
+available. A clean, disconnected Windows machine and a second Windows account
+were unavailable, so offline first-run behavior on an unconfigured system is
+not established. The in-place installer upgrade succeeded, but a separate
+application-data A/B retention check is still outstanding. Public redistribution
+remains blocked: `installer/release-inventory.json` has not been reviewed or
+created, and the source, notices, and license inventory must be completed as
+described in [installer/BUILD.md](../installer/BUILD.md). The local setup EXE is
+ignored by Git and has not been published.
 
 ## Remaining manual acceptance
 
@@ -66,7 +72,8 @@ blocked on completing the source, notices, and license inventory described in
 - [ ] Verify the guest reaches Home, ADB authorizes, and the app reaches Ready.
 - [ ] Verify Home, Back, Screenshot, APK install, and APK paths containing spaces.
 - [ ] Check existing per-user `.apk` choice and Open With behavior.
-- [ ] Upgrade in place and verify apps, guest data, and settings are retained.
+- [x] Upgrade the installer in place; verify the retained overlay boots.
+- [ ] Verify custom apps, guest data, and settings survive an A/B upgrade.
 - [ ] Install under another Windows account and confirm its instance data is separate.
 
 ### WHPX states

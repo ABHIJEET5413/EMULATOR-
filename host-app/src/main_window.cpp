@@ -28,7 +28,9 @@ MainWindow::MainWindow(QWidget* parent)
 {
     setWindowTitle(QStringLiteral("DroidBox"));
     setMinimumSize(480, 700);
-    resize(600, 850);
+    // Leave enough horizontal room for Android's first-run authorization
+    // dialogs beside the vertical toolbar, even on a 1280px-wide desktop.
+    resize(900, 850);
     setAcceptDrops(true);
 
     m_displayEmbed = new DisplayEmbed(this);
