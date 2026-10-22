@@ -1,0 +1,144 @@
+DroidBox remote clean-PC testing prompt
+=======================================
+
+Copy everything below this line into Codex on the separate Windows PC.
+
+----- BEGIN PROMPT -----
+
+You are validating a Windows installer on a clean test PC. Perform this work
+carefully and save an evidence-based result file for the project owner. Do not
+write application code, change the installer, modify the GitHub repository, or
+delete existing user data. Stop a test case at its first failure and record the
+exact command output and screenshots/log paths when available.
+
+Project: DroidBox Android emulator
+Repository: https://github.com/HEARTLESS5413/EMULATOR-
+Testing release: https://github.com/HEARTLESS5413/EMULATOR-/releases/tag/v0.1.0-test.1
+Installer asset: DroidBoxSetup.exe
+Expected SHA-256:
+057E2ECFD75986D81D1D7328328F77C48E2A244C04204B9472D41A8446AD7055
+Acceptance checklist:
+https://raw.githubusercontent.com/HEARTLESS5413/EMULATOR-/main/docs/CLEAN-PC-ACCEPTANCE.txt
+
+Goal
+----
+Download the official prerelease installer, test it on this PC using the
+clean-PC acceptance checklist, and create the result file:
+
+  %USERPROFILE%\Desktop\DroidBox-clean-PC-test-results.txt
+
+Use plain text. Include every test case as PASS, FAIL, BLOCKED, or NOT RUN.
+Never invent a pass result. This is a prerelease test, not a production
+release. Do not publish a GitHub release or push any changes.
+
+Safety and scope
+----------------
+1. Do not delete Android/ADB/DroidBox files belonging to an existing user.
+2. If this PC has previously run DroidBox, has %USERPROFILE%\.android\adbkey,
+   or has DroidBox data, report BLOCKED and use a new Windows user account or
+   a clean Windows VM. Do not remove those files to make the test pass.
+3. The installer may request elevation. Explain this to the user and let them
+   approve it. Do not bypass Windows security prompts.
+4. If BIOS/UEFI virtualization must be enabled, explain the exact requirement,
+   record BLOCKED, and stop only the dependent tests. Do not change firmware
+   settings yourself.
+5. Some Android UI checks require the user to click/tap and type. Ask for that
+   interaction only when needed, then continue recording the outcome.
+
+Procedure
+---------
+1. Download the checklist and installer only from the URLs above. Prefer a
+   browser download or PowerShell Invoke-WebRequest. Save the installer under
+   Downloads; do not copy a development checkout onto the test PC.
+
+2. Record the PC environment in the result file:
+   - Windows edition, version, and build
+   - CPU model and system type
+   - whether this is a clean user/PC
+   - free disk space before testing
+   - output of this elevated PowerShell command:
+
+       Get-WindowsOptionalFeature -Online -FeatureName HypervisorPlatform
+
+3. Verify the downloaded file before executing it:
+
+       Get-FileHash "$env:USERPROFILE\Downloads\DroidBoxSetup.exe" -Algorithm SHA256
+
+   Use the actual downloaded path if different. Compare against the expected
+   hash above. If it differs, mark Installer integrity FAIL and stop.
+
+4. Follow every test case in CLEAN-PC-ACCEPTANCE.txt in order. Keep the test
+   PC offline through its offline test, then restore connectivity only at the
+   point the checklist directs. Test these areas and capture their individual
+   outcomes:
+   - clean-machine preconditions
+   - installer integrity
+   - offline install, including WHPX check/offer, license page, install path
+     containing spaces, shortcuts, APK association, and default overlay
+   - first Android boot and guest display embedding
+   - Android's first ADB RSA authorization prompt, if shown
+   - ADB connection and basic navigation controls
+   - APK installation via button, drag-drop, and .apk file association
+   - file push and Android media scan
+   - screenshot creation
+   - instance creation/clone/delete and per-instance isolation
+   - application-data retention across an upgrade, if the checklist permits it
+   - uninstall behavior
+
+5. For command-based checks, include the exact commands and their complete
+   relevant output. For UI checks, describe exactly what was seen and attach or
+   reference screenshots by full path. Do not repeatedly retry an ADB
+   connection. If it fails, capture `adb devices`, the application log, and
+   relevant QEMU logs once, then investigate the recorded cause.
+
+6. At the end, create %USERPROFILE%\Desktop\DroidBox-clean-PC-test-results.txt
+   using this exact structure:
+
+   DroidBox clean-PC acceptance results
+   ====================================
+   Date/time (local):
+   Tester:
+   PC and Windows environment:
+   Release URL:
+   Installer path:
+   Installer SHA-256 observed:
+   Expected SHA-256:
+
+   Preconditions: PASS|FAIL|BLOCKED
+   Details:
+
+   Test 1 - Installer integrity: PASS|FAIL|BLOCKED
+   Evidence:
+
+   Test 2 - Offline installation and WHPX: PASS|FAIL|BLOCKED
+   Evidence:
+
+   Test 3 - First boot, Android Home, display, and ADB RSA: PASS|FAIL|BLOCKED
+   Evidence:
+
+   Test 4 - ADB and toolbar functions: PASS|FAIL|BLOCKED|NOT RUN
+   Evidence:
+
+   Test 5 - APK install methods and file push: PASS|FAIL|BLOCKED|NOT RUN
+   Evidence:
+
+   Test 6 - Multi-instance and settings: PASS|FAIL|BLOCKED|NOT RUN
+   Evidence:
+
+   Test 7 - Upgrade retention: PASS|FAIL|BLOCKED|NOT RUN
+   Evidence:
+
+   Test 8 - Uninstall: PASS|FAIL|BLOCKED|NOT RUN
+   Evidence:
+
+   Overall result: PASS|FAIL|BLOCKED
+   Remaining blockers:
+   Reproduction steps for each failure:
+   Attached screenshot/log file paths:
+
+7. In the final chat response, report the result-file path, overall result,
+   completed versus blocked test count, and the first failure if any. Do not
+   claim the project is production-ready. Ask the tester to send the complete
+   text file back to the project owner.
+
+----- END PROMPT -----
