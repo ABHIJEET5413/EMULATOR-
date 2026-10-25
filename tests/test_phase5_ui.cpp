@@ -23,6 +23,7 @@
 #include "instance_list_window.h"
 #include "instance_manager.h"
 #include "settings_dialog.h"
+#include "display_embed.h"
 
 #include <functional>
 
@@ -124,10 +125,18 @@ int main(int argc, char** argv)
     check(ram->minimum() * 512 == 1024 && ram->maximum() * 512 == InstanceManager::maximumRamMB(), "RAM widget enforces host limit and step");
     for (int index = 0; index < resolution->count(); ++index) {
         resolution->setCurrentIndex(index);
-        const auto parts = resolution->currentText().split('x');
+        const auto parts = resolution->currentData().toString().split('x');
         const auto display = settings.getConfig().value("display").toObject();
         check(display.value("width").toInt() == parts[0].toInt() && display.value("height").toInt() == parts[1].toInt(), "resolution preset " + resolution->currentText());
     }
+    check(resolution->findText("Mobile — Full HD (1080 × 1920)") >= 0
+          && resolution->findText("Tablet — QHD (2560 × 1600)") >= 0
+          && resolution->findText("Desktop — Full HD (1920 × 1080)") >= 0,
+          "settings identify mobile, tablet, and desktop display presets");
+    const QRect desktopRect = DisplayEmbed::guestContentRect(QSize(1600, 1000), QSize(1920, 1080));
+    check(desktopRect == QRect(0, 50, 1600, 900), "display embedding centers a 16:9 guest without stretching");
+    const QRect mobileRect = DisplayEmbed::guestContentRect(QSize(1000, 1600), QSize(1080, 1920));
+    check(mobileRect == QRect(50, 0, 900, 1600), "display embedding centers a portrait guest without stretching");
     for (int index = 0; index < dpi->count(); ++index) {
         dpi->setCurrentIndex(index);
         check(settings.getConfig().value("display").toObject().value("dpi").toInt() == dpi->currentText().toInt(), "DPI selection " + dpi->currentText());
@@ -156,7 +165,8 @@ int main(int argc, char** argv)
         if (!dialog) return;
         qobject_cast<QSpinBox*>(field(*dialog, "CPU cores"))->setValue(qMin(2, InstanceManager::maximumCpuCores()));
         dialog->findChild<QSlider*>()->setValue(qMin(3, InstanceManager::maximumRamMB() / 512));
-        qobject_cast<QComboBox*>(field(*dialog, "Resolution"))->setCurrentText("1920x1200");
+        qobject_cast<QComboBox*>(field(*dialog, "Resolution"))->setCurrentIndex(
+            qobject_cast<QComboBox*>(field(*dialog, "Resolution"))->findData("1920x1200"));
         qobject_cast<QComboBox*>(field(*dialog, "DPI"))->setCurrentText("320");
         dialog->findChild<QDialogButtonBox*>()->button(QDialogButtonBox::Save)->click();
     });

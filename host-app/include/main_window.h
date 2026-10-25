@@ -56,6 +56,8 @@ private:
     void createToolbar();
     QString findDefaultConfig() const;
     void startVm();
+    /** Size the host window to the selected guest aspect ratio and desktop space. */
+    void resizeForGuestDisplay(QSize resolution);
     void beginDisplayWindowSearch();
     void searchForQemuWindow();
     void handleVmError(const QString& message);

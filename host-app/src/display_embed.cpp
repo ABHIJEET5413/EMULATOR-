@@ -49,7 +49,36 @@ DisplayEmbed::DisplayEmbed(QWidget* parent)
     setFocusPolicy(Qt::StrongFocus);
     setMouseTracking(true);
     setAttribute(Qt::WA_NativeWindow);
+    setAttribute(Qt::WA_OpaquePaintEvent);
+    setStyleSheet(QStringLiteral("background: black;"));
     setMinimumSize(240, 320);
+}
+
+void DisplayEmbed::setGuestResolution(const QSize resolution)
+{
+    if (resolution.width() < 1 || resolution.height() < 1) {
+        qWarning() << "Ignoring invalid guest resolution" << resolution;
+        return;
+    }
+
+    m_guestResolution = resolution;
+    resizeEmbeddedWindow();
+}
+
+QRect DisplayEmbed::guestContentRect(const QSize availableSize, const QSize guestResolution)
+{
+    if (availableSize.width() < 1 || availableSize.height() < 1
+        || guestResolution.width() < 1 || guestResolution.height() < 1) {
+        return {};
+    }
+
+    const qreal scale = qMin(static_cast<qreal>(availableSize.width()) / guestResolution.width(),
+                             static_cast<qreal>(availableSize.height()) / guestResolution.height());
+    const QSize contentSize(qMax(1, qRound(guestResolution.width() * scale)),
+                            qMax(1, qRound(guestResolution.height() * scale)));
+    return QRect((availableSize.width() - contentSize.width()) / 2,
+                 (availableSize.height() - contentSize.height()) / 2,
+                 contentSize.width(), contentSize.height());
 }
 
 quintptr DisplayEmbed::findWindowForProcess(const qint64 processId)
@@ -205,9 +234,15 @@ void DisplayEmbed::resizeEmbeddedWindow()
     const HWND window = reinterpret_cast<HWND>(m_embeddedWindow);
     if (window && IsWindow(window)) {
         const qreal scale = devicePixelRatioF();
-        const int pixelWidth = qMax(1, qRound(width() * scale));
-        const int pixelHeight = qMax(1, qRound(height() * scale));
-        if (!MoveWindow(window, 0, 0, pixelWidth, pixelHeight, TRUE)) {
+        const QRect content = guestContentRect(size(), m_guestResolution);
+        // Win32 child coordinates are physical pixels. Keeping this exact
+        // content rectangle aligned with the SDL child prevents black-bar
+        // clicks from being interpreted as guest coordinates.
+        const int pixelX = qRound(content.x() * scale);
+        const int pixelY = qRound(content.y() * scale);
+        const int pixelWidth = qMax(1, qRound(content.width() * scale));
+        const int pixelHeight = qMax(1, qRound(content.height() * scale));
+        if (!MoveWindow(window, pixelX, pixelY, pixelWidth, pixelHeight, TRUE)) {
             qWarning() << "Could not resize the embedded QEMU display.";
         }
     }

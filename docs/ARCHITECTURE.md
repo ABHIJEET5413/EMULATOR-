@@ -401,14 +401,20 @@ Physical key → InputHandler → KeymapEngine
 - `InstanceListWindow` (`instance_list_window.h/.cpp`): launcher with create/start/stop/settings/clone/delete/reset,
   running-state refresh, confirmation before erasure, and disk work on a dedicated QThread.
   Each managed `MainWindow` has its own controller, ADB bridge, display, and input handler.
-- `SettingsDialog` (`settings_dialog.h/.cpp`): CPU/RAM sliders/spinboxes, six display presets, DPI,
-  QMP/ADB ports, and optional USB VID/PID. Settings apply after restart; running ports cannot change.
+- `SettingsDialog` (`settings_dialog.h/.cpp`): CPU/RAM sliders/spinboxes, named Mobile, Tablet, and
+  Desktop display presets, DPI, QMP/ADB ports, and optional USB VID/PID. The selected resolution/DPI
+  are stored in the selected instance's `config.json`, so they are restored on its next launch. Settings
+  apply after restart; running ports cannot change.
 - `main.cpp`: imports the existing default disk without recreating it, launches the sole instance directly,
   otherwise shows the launcher. APK arguments target default; `--instance NAME` selects one;
   `--instances` explicitly opens the launcher. Installed writable data uses AppLocalDataLocation.
   File logs use `droidbox-<pid>.log` to preserve complete records across multiple app processes.
-- `MainWindow` now wires Settings and Instances actions. Boot completion applies numeric `wm size`/`wm density`
+- `MainWindow` now wires Settings and Instances actions. It sizes the initial host window for the selected
+  guest aspect ratio within the active monitor's work area. Boot completion applies numeric `wm size`/`wm density`
   settings through that instance's ADB serial and updates keymap coordinate scaling.
+- `DisplayEmbed` keeps the SDL child in a centered, aspect-correct rectangle instead of stretching it across
+  letterbox space. The same physical-pixel rectangle is given to Win32, preventing cursor/touch displacement
+  caused by clicks in black bars or mismatched SDL scaling.
 - `QemuController` applies display width/height as virtio-vga-gl xres/yres and validates optional usb-host IDs.
   The instance running lock remains held until QEMU has exited.
 - `image-build/prepare-instance-base.sh`: creates a new provisioned base via a disposable overlay;

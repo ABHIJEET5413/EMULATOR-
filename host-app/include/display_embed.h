@@ -1,8 +1,9 @@
 #pragma once
 
-#include <QWidget>
-
+#include <QRect>
 #include <QString>
+#include <QSize>
+#include <QWidget>
 
 /**
  * @file display_embed.h
@@ -20,6 +21,12 @@ public:
 
     /** Reparent a native QEMU window into this widget. */
     bool embedWindow(quintptr windowHandle, QString* errorMessage = nullptr);
+
+    /** Set the native guest raster size used to preserve aspect ratio on resize. */
+    void setGuestResolution(QSize resolution);
+
+    /** Calculate the centered guest rectangle without stretching its aspect ratio. */
+    static QRect guestContentRect(QSize availableSize, QSize guestResolution);
 
     /** Return whether a QEMU window is currently embedded. */
     bool hasEmbeddedWindow() const;
@@ -45,4 +52,5 @@ private:
     quintptr m_originalParent{0};
     qintptr m_originalStyle{0};
     qintptr m_originalExtendedStyle{0};
+    QSize m_guestResolution{1080, 1920};
 };

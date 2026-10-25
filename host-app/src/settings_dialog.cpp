@@ -31,10 +31,24 @@ SettingsDialog::SettingsDialog(const QJsonObject& config, bool running, QWidget*
     showRam(); form->addRow(ramLabel, m_ramSlider);
     const auto display = config.value("display").toObject();
     m_resolution = new QComboBox(this);
-    m_resolution->addItems({"720x1280", "1080x1920", "1440x2560", "1280x800", "1920x1200", "2560x1600"});
+    const auto addResolution = [this](const QString& label, const QString& size) {
+        m_resolution->addItem(label, size);
+    };
+    addResolution("Mobile — HD (720 × 1280)", "720x1280");
+    addResolution("Mobile — Full HD (1080 × 1920)", "1080x1920");
+    addResolution("Mobile — QHD (1440 × 2560)", "1440x2560");
+    addResolution("Tablet — WXGA (1280 × 800)", "1280x800");
+    addResolution("Tablet — Full HD (1920 × 1200)", "1920x1200");
+    addResolution("Tablet — QHD (2560 × 1600)", "2560x1600");
+    addResolution("Desktop — Full HD (1920 × 1080)", "1920x1080");
+    addResolution("Desktop — QHD (2560 × 1440)", "2560x1440");
     const QString size = QString("%1x%2").arg(display.value("width").toInt()).arg(display.value("height").toInt());
-    if (m_resolution->findText(size) < 0) m_resolution->addItem(size);
-    m_resolution->setCurrentText(size);
+    int resolutionIndex = m_resolution->findData(size);
+    if (resolutionIndex < 0) {
+        m_resolution->addItem(QString("Custom — %1 × %2").arg(display.value("width").toInt()).arg(display.value("height").toInt()), size);
+        resolutionIndex = m_resolution->count() - 1;
+    }
+    m_resolution->setCurrentIndex(resolutionIndex);
     form->addRow("Resolution", m_resolution);
     m_dpi = new QComboBox(this); m_dpi->addItems({"160", "240", "320", "480"});
     m_dpi->setCurrentText(QString::number(display.value("dpi").toInt()));
@@ -74,7 +88,7 @@ QJsonObject SettingsDialog::getConfig() const
 {
     auto result = m_originalConfig;
     result["cpuCores"] = m_cpuCores->value(); result["ramMB"] = m_ramSlider->value() * 512;
-    const auto parts = m_resolution->currentText().split('x');
+    const auto parts = m_resolution->currentData().toString().split('x');
     result["display"] = QJsonObject{{"width", parts.value(0).toInt()}, {"height", parts.value(1).toInt()}, {"dpi", m_dpi->currentText().toInt()}};
     result["qmpPort"] = m_qmpPort->value(); result["adbHostPort"] = m_adbPort->value();
     auto network = result.value("network").toObject(); network["adbHostPort"] = m_adbPort->value(); result["network"] = network;

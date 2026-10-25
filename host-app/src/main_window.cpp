@@ -6,11 +6,13 @@
 #include <QDropEvent>
 #include <QFileInfo>
 #include <QFileDialog>
+#include <QGuiApplication>
 #include <QLabel>
 #include <QMimeData>
 #include <QMessageBox>
 #include <QStandardPaths>
 #include <QStatusBar>
+#include <QScreen>
 #include <QToolBar>
 #include <QUrl>
 #include <QWidget>
@@ -271,11 +273,46 @@ void MainWindow::startVm()
         return;
     }
 
+    const auto display = m_launchConfig.value("display").toObject();
+    const QSize guestResolution(display.value("width").toInt(1080),
+                                display.value("height").toInt(1920));
+    if (guestResolution.width() > 0 && guestResolution.height() > 0) {
+        m_displayEmbed->setGuestResolution(guestResolution);
+        m_inputHandler.setGuestResolution(guestResolution);
+        resizeForGuestDisplay(guestResolution);
+    }
+
     m_statusLabel->setText(QStringLiteral("Status: Starting VM"));
     if (!m_qemuController.start(configPath)) {
         if (m_instanceManager) m_instanceManager->releaseInstance(m_instanceName);
         m_statusLabel->setText(QStringLiteral("Status: VM failed to start"));
     }
+}
+
+void MainWindow::resizeForGuestDisplay(const QSize resolution)
+{
+    QScreen* targetScreen = this->screen();
+    if (!targetScreen) {
+        targetScreen = QGuiApplication::primaryScreen();
+    }
+    if (!targetScreen || resolution.width() < 1 || resolution.height() < 1) {
+        return;
+    }
+
+    const QRect available = targetScreen->availableGeometry();
+    // Leave room for native window decoration, status bar, and the fixed
+    // toolbar. The guest remains aspect-correct inside the remaining client
+    // area, including on displays smaller than the chosen preset.
+    constexpr int chromeWidth = 150;
+    constexpr int chromeHeight = 110;
+    const QSize maximum(qMax(480, available.width() - chromeWidth - 32),
+                        qMax(700, available.height() - chromeHeight - 32));
+    const qreal scale = qMin<qreal>(1.0,
+                                    qMin(static_cast<qreal>(maximum.width()) / resolution.width(),
+                                         static_cast<qreal>(maximum.height()) / resolution.height()));
+    const QSize guestSize(qMax(240, qRound(resolution.width() * scale)),
+                          qMax(320, qRound(resolution.height() * scale)));
+    resize(guestSize.width() + chromeWidth, guestSize.height() + chromeHeight);
 }
 
 void MainWindow::beginDisplayWindowSearch()

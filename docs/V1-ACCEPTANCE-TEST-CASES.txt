@@ -171,8 +171,10 @@ Display, input, and keymaps
 ---------------------------
 TC-20  Mouse/touch interaction
   Steps: Use the mouse in Android to open Settings, select items, scroll, and
-  return to Home.
-  Expected: Pointer actions target the correct guest location.
+  return to Home. Also click near each visible edge of the Android image and
+  compare the host pointer position with the Android touch response.
+  Expected: Pointer actions target the correct guest location. Black padding,
+  if any, cannot receive a displaced Android touch.
   Pass: Taps, drag, and scrolling work without offset or host crash.
 
 TC-21  Keyboard typing and focus
@@ -242,11 +244,16 @@ TC-36  Create and boot another instance
   Pass: New instance runs without changing the default instance.
 
 TC-37  Per-instance settings
-  Steps: Change CPU, RAM, resolution, and DPI for the second instance. Save
-  and restart that instance.
-  Expected: Values validate, persist in its config, and take effect after
-  restart. Android receives display/DPI updates after ADB is ready.
-  Pass: Changes apply only to the selected instance.
+  Steps: Change CPU, RAM, and DPI. Select one Mobile preset, one Tablet
+  preset, and one Desktop preset in separate test runs. Save and restart the
+  selected instance after each choice. Close and reopen DroidBox after the
+  final choice.
+  Expected: Values validate, persist in that instance's config, take effect
+  after restart, and are restored after reopening DroidBox. The host window
+  starts at a size that fits the selected guest aspect ratio inside the active
+  monitor; Android is not stretched across a mismatched window.
+  Pass: Changes apply only to the selected instance and the final resolution
+  and DPI are remembered on the next launch.
 
 TC-38  Clone and isolation
   Steps: Clone an instance. In one guest create a file or install a test app.
