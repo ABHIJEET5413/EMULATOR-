@@ -158,7 +158,7 @@ bool DisplayEmbed::embedWindow(const quintptr windowHandle, QString* errorMessag
     m_originalParent = reinterpret_cast<quintptr>(originalParent);
     m_originalStyle = static_cast<qintptr>(originalStyle);
     m_originalExtendedStyle = static_cast<qintptr>(originalExtendedStyle);
-    qInfo() << "Embedded QEMU window" << windowHandle << "in the DroidBox display area.";
+    qInfo() << "Embedded QEMU window" << windowHandle << "in the Sabi display area.";
     return true;
 #else
     Q_UNUSED(windowHandle)

@@ -56,7 +56,7 @@ void messageHandler(const QtMsgType type,
     }
     // Independent application processes cannot safely share a persistent file
     // offset on Windows. Keep each process's complete log in its own file.
-    static QFile logFile(QDir(logDirectory).filePath(QStringLiteral("droidbox-%1.log")
+    static QFile logFile(QDir(logDirectory).filePath(QStringLiteral("sabi-%1.log")
         .arg(QCoreApplication::applicationPid())));
 
     const QString line = QStringLiteral("[%1] [%2] %3\n")

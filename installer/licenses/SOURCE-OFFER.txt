@@ -6,7 +6,7 @@ sources directory. SOURCES.md identifies their exact revisions, and
 manifest.json records the staged files and hashes. The same notices and
 local modifications may be copied and redistributed under their licenses.
 
-For distributor-approved releases, the DroidBox distributor offers to any
+For distributor-approved releases, the Sabi distributor offers to any
 third party a complete machine-readable copy of the corresponding source
 for the GPL-covered software conveyed in that release, including required
 build scripts and local modifications. This offer is valid for at least
@@ -15,7 +15,7 @@ For GPLv3-covered software it also remains valid for as long as the
 distributor offers spare parts or customer support for that product model.
 
 Requests can be made through the distributor's project issue tracker:
-https://github.com/HEARTLESS5413/EMULATOR-/issues
+https://github.com/ABHIJEET5413/EMULATOR-/issues
 
 Include the installer version and SHA-256 so the distributor can identify
 the corresponding source set. Electronic access is provided without charge.

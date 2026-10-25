@@ -13,4 +13,4 @@ try{
 $bitmap=[Drawing.Bitmap]::new(164,314);$graphics=[Drawing.Graphics]::FromImage($bitmap)
 $font=[Drawing.Font]::new('Segoe UI',24,[Drawing.FontStyle]::Bold,[Drawing.GraphicsUnit]::Pixel)
 $small=[Drawing.Font]::new('Segoe UI',12,[Drawing.FontStyle]::Regular,[Drawing.GraphicsUnit]::Pixel)
-try{$graphics.Clear([Drawing.Color]::FromArgb(27,39,54));$graphics.DrawString('DroidBox',$font,[Drawing.Brushes]::Turquoise,12,40);$graphics.DrawString("Android on`nWindows",$small,[Drawing.Brushes]::White,14,90);$bitmap.Save((Join-Path $folder 'installer-banner.bmp'),[Drawing.Imaging.ImageFormat]::Bmp)}finally{$small.Dispose();$font.Dispose();$graphics.Dispose();$bitmap.Dispose()}
+try{$graphics.Clear([Drawing.Color]::FromArgb(27,39,54));$graphics.DrawString('Sabi',$font,[Drawing.Brushes]::Turquoise,12,40);$graphics.DrawString("Android on`nWindows",$small,[Drawing.Brushes]::White,14,90);$bitmap.Save((Join-Path $folder 'installer-banner.bmp'),[Drawing.Imaging.ImageFormat]::Bmp)}finally{$small.Dispose();$font.Dispose();$graphics.Dispose();$bitmap.Dispose()}

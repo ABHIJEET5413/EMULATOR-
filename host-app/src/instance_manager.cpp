@@ -343,7 +343,7 @@ QString InstanceManager::preparedBaseImage() const
     const auto metadata = readObject(layout);
     const QString digest = metadata.value("baseImageSha256").toString().toLower();
     if (!QRegularExpression("^[0-9a-f]{64}$").match(digest).hasMatch()) {
-        fail("The installed Android image manifest is invalid. Reinstall DroidBox."); return {};
+        fail("The installed Android image manifest is invalid. Reinstall Sabi."); return {};
     }
     const QString dataRoot = QFileInfo(m_instancesRoot).absolutePath();
     const QString bases = QDir(dataRoot).filePath("bases");
@@ -354,12 +354,12 @@ QString InstanceManager::preparedBaseImage() const
     }
     QLockFile lock(QDir(bases).filePath(".preparation.lock"));
     lock.setStaleLockTime(0);
-    if (!lock.tryLock(0)) { fail("Another DroidBox process is preparing the Android image. Wait for it to finish."); return {}; }
+    if (!lock.tryLock(0)) { fail("Another Sabi process is preparing the Android image. Wait for it to finish."); return {}; }
     const QString target = QDir(version).filePath("bliss-provisioned.qcow2");
     if (QFileInfo(target).isSymLink()) { fail("The cached Android base must not be a link."); return {}; }
     if (QFileInfo::exists(target)) {
         if (QFileInfo(target).size() == metadata.value("baseImageBytes").toVariant().toLongLong()) return target;
-        fail("The preserved Android base has an unexpected size. Preserve your instance data and reinstall DroidBox."); return {};
+        fail("The preserved Android base has an unexpected size. Preserve your instance data and reinstall Sabi."); return {};
     }
     QFile input(source);
     QSaveFile output(target);
@@ -379,7 +379,7 @@ QString InstanceManager::preparedBaseImage() const
         }
     }
     if (QString::fromLatin1(hash.result().toHex()) != digest || !output.commit()) {
-        fail("Android image verification or publication failed. Reinstall DroidBox and check disk space."); return {};
+        fail("Android image verification or publication failed. Reinstall Sabi and check disk space."); return {};
     }
     // Old versions are retained: every overlay keeps its original backing base.
     return target;

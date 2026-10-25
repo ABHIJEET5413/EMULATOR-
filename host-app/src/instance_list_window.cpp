@@ -41,7 +41,7 @@ InstanceListWindow::InstanceListWindow(InstanceManager* manager, QWidget* parent
     add("Stop", [this] {
         const auto name = selectedName(); auto window = m_windows.value(name);
         if (window) window->close();
-        else if (m_manager->isRunning(name)) QMessageBox::information(this, "Instance running elsewhere", "Stop this instance from the DroidBox process that launched it.");
+        else if (m_manager->isRunning(name)) QMessageBox::information(this, "Instance running elsewhere", "Stop this instance from the Sabi process that launched it.");
     });
     add("Settings", [this] { configure(selectedName()); });
     add("Clone", [this] {

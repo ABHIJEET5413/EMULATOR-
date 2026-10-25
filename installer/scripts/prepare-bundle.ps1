@@ -21,7 +21,7 @@ if(-not $SourceDirectory){$SourceDirectory=Join-Path $repository '_downloads\pha
 $lock=Get-Content (Join-Path $installer 'source-lock.json') -Raw | ConvertFrom-Json
 function Assert-File([string]$Path){ if(-not (Test-Path -LiteralPath $Path -PathType Leaf)){throw "Required file missing: $Path"} }
 function Assert-Hash([string]$Path,[string]$Expected){Assert-File $Path;if((Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash -ne $Expected){throw "SHA-256 mismatch: $Path"}}
-foreach($path in @((Join-Path $AppDirectory 'DroidBox.exe'),(Join-Path $QtRoot 'bin\windeployqt.exe'),(Join-Path $QemuRoot 'qemu-system-x86_64.exe'),(Join-Path $QemuRoot 'qemu-img.exe'),(Join-Path $AdbRoot 'adb.exe'),$RuntimeInstaller)){Assert-File $path}
+foreach($path in @((Join-Path $AppDirectory 'Sabi.exe'),(Join-Path $QtRoot 'bin\windeployqt.exe'),(Join-Path $QemuRoot 'qemu-system-x86_64.exe'),(Join-Path $QemuRoot 'qemu-img.exe'),(Join-Path $AdbRoot 'adb.exe'),$RuntimeInstaller)){Assert-File $path}
 Assert-Hash $BaseImage $lock.baseImageSha256
 foreach($source in $lock.sources){Assert-Hash (Join-Path $SourceDirectory $source.file) $source.sha256}
 if((Get-AuthenticodeSignature -LiteralPath $RuntimeInstaller).Status -ne 'Valid'){throw 'Microsoft runtime package must have a valid signature.'}
@@ -44,8 +44,8 @@ if(Test-Path -LiteralPath $bundle){
     Remove-Item -LiteralPath $bundle -Recurse -Force
 }
 foreach($folder in @('app','qemu','adb','images','configs','vcredist','sources','notices')){New-Item -ItemType Directory -Path (Join-Path $bundle $folder) -Force | Out-Null}
-Copy-Item -LiteralPath (Join-Path $AppDirectory 'DroidBox.exe') -Destination (Join-Path $bundle 'app')
-& (Join-Path $QtRoot 'bin\windeployqt.exe') --release --no-translations --no-opengl-sw --no-compiler-runtime --dir (Join-Path $bundle 'app') (Join-Path $bundle 'app\DroidBox.exe')
+Copy-Item -LiteralPath (Join-Path $AppDirectory 'Sabi.exe') -Destination (Join-Path $bundle 'app')
+& (Join-Path $QtRoot 'bin\windeployqt.exe') --release --no-translations --no-opengl-sw --no-compiler-runtime --dir (Join-Path $bundle 'app') (Join-Path $bundle 'app\Sabi.exe')
 if($LASTEXITCODE -ne 0){throw 'windeployqt failed.'}
 Copy-Item -LiteralPath (Join-Path $repository 'host-app\resources') -Destination (Join-Path $bundle 'app') -Recurse
 foreach($name in @('qemu-system-x86_64.exe','qemu-img.exe','COPYING','COPYING.LIB','VERSION','README.rst')){Copy-Item -LiteralPath (Join-Path $QemuRoot $name) -Destination (Join-Path $bundle 'qemu')}
@@ -64,8 +64,8 @@ $config | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $bundle 
 foreach($source in $lock.sources){Copy-Item -LiteralPath (Join-Path $SourceDirectory $source.file) -Destination (Join-Path $bundle 'sources')}
 Copy-Item -LiteralPath (Join-Path $installer 'source-lock.json') -Destination (Join-Path $bundle 'sources')
 $projectFiles=@(& git -C $repository ls-files --cached --others --exclude-standard -- host-app image-build vm/configs vm/scripts)
-if($LASTEXITCODE -ne 0){throw 'Cannot collect the current DroidBox source files.'}
-foreach($relative in $projectFiles){$destination=Join-Path $bundle ('sources\droidbox\'+$relative);New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force | Out-Null;Copy-Item -LiteralPath (Join-Path $repository $relative) -Destination $destination}
+if($LASTEXITCODE -ne 0){throw 'Cannot collect the current Sabi source files.'}
+foreach($relative in $projectFiles){$destination=Join-Path $bundle ('sources\sabi\'+$relative);New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force | Out-Null;Copy-Item -LiteralPath (Join-Path $repository $relative) -Destination $destination}
 Copy-Item -LiteralPath (Join-Path $AdbRoot 'NOTICE.txt') -Destination (Join-Path $bundle 'notices\ADB-NOTICE.txt')
 Copy-Item -LiteralPath (Join-Path $QemuRoot 'COPYING'),(Join-Path $QemuRoot 'COPYING.LIB') -Destination (Join-Path $bundle 'notices')
 foreach($module in @('qtbase','qtsvg')){foreach($suffix in @('cdx.json','spdx.json')){$sbom=Join-Path $QtRoot ('sbom\'+$module+'-'+$lock.qtVersion+'.'+$suffix);if(Test-Path -LiteralPath $sbom){Copy-Item -LiteralPath $sbom -Destination (Join-Path $bundle 'notices')}}}

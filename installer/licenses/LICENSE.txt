@@ -1,11 +1,11 @@
-DroidBox - license and source information
+Sabi - license and source information
 =======================================
 
-DroidBox's original application and tooling are distributed under the MIT
+Sabi's original application and tooling are distributed under the MIT
 license below. Each bundled component retains its own license. This notice
 does not replace or restrict the rights granted by those licenses.
 
-Copyright (c) 2026 DroidBox contributors
+Copyright (c) 2026 Sabi contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -42,7 +42,7 @@ Included components
 * Android Debug Bridge: Apache 2.0 and notices supplied with platform-tools.
 * microG compatibility components in the FOSS guest: Apache 2.0 and their
   dependency notices. Proprietary Google Play/GApps are not supplied by
-  DroidBox's packaging scripts.
+  Sabi's packaging scripts.
 * Microsoft Visual C++ Redistributable: Microsoft's separate software terms,
   retained in the Microsoft package. MSVC-LICENSE.txt and the original DOCX
   reproduce Microsoft's published Visual C++ 2015-2022 runtime terms; the
@@ -51,7 +51,7 @@ Included components
 Sources and offers
 ------------------
 Read SOURCE-OFFER.txt and SOURCES.md, installed alongside this notice.
-Collected, pinned source archives and DroidBox's local image modifications
+Collected, pinned source archives and Sabi's local image modifications
 are installed in the sources directory. Additional upstream notices and Qt
 SBOMs are in licenses/upstream. manifest.json lists payload hashes/versions
 and its release-inventory status.
@@ -61,5 +61,5 @@ before public redistribution. Inclusion of this license screen alone does
 not establish that an unreviewed development payload is ready to distribute.
 
 Project and source-request channel:
-https://github.com/HEARTLESS5413/EMULATOR-
-https://github.com/HEARTLESS5413/EMULATOR-/issues
+https://github.com/ABHIJEET5413/EMULATOR-
+https://github.com/ABHIJEET5413/EMULATOR-/issues

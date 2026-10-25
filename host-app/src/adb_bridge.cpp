@@ -48,7 +48,7 @@ AdbBridge::AdbBridge(QObject* parent)
             m_waitingForAuthorization = false;
             ++m_connectionGeneration;
             m_connectCommandRunning = false;
-            emit errorOccurred(QStringLiteral("Android has not authorized this computer. Select Allow in the guest's USB debugging prompt, then restart DroidBox to reconnect."));
+            emit errorOccurred(QStringLiteral("Android has not authorized this computer. Select Allow in the guest's USB debugging prompt, then restart Sabi to reconnect."));
             return;
         }
         // Observe the existing ADB transport; never repeatedly run adb connect.
@@ -525,7 +525,7 @@ void AdbBridge::probeGuestListener(const quint64 generation)
     };
     connect(socket, &QTcpSocket::connected, this, [socket]() {
         // A TCP accept from QEMU alone is insufficient: ask adbd for a CNXN/AUTH reply.
-        const QByteArray banner("host::droidbox\0", 15);
+        const QByteArray banner("host::sabi\0", 11);
         QByteArray packet;
         const auto appendWord = [&packet](quint32 word) {
             const quint32 little = qToLittleEndian(word);
@@ -605,7 +605,7 @@ void AdbBridge::tryConnect(const quint64 generation)
                     }
                     if (detail.contains(QStringLiteral("offline"), Qt::CaseInsensitive)) {
                         m_connectTimer.stop();
-                        emit errorOccurred(QStringLiteral("ADB reports an offline guest at %1. Check the guest's adbd service before restarting DroidBox. Automatic reconnect has stopped.").arg(m_serial));
+                        emit errorOccurred(QStringLiteral("ADB reports an offline guest at %1. Check the guest's adbd service before restarting Sabi. Automatic reconnect has stopped.").arg(m_serial));
                         return;
                     }
 
@@ -669,14 +669,14 @@ void AdbBridge::verifyTransport(const quint64 generation)
                     if (m_waitingForAuthorization) {
                         m_authorizationTimer.stop();
                         m_waitingForAuthorization = false;
-                        emit errorOccurred(QStringLiteral("ADB authorization transport at %1 was lost: %2. Check the guest before restarting DroidBox.").arg(m_serial, detail));
+                        emit errorOccurred(QStringLiteral("ADB authorization transport at %1 was lost: %2. Check the guest before restarting Sabi.").arg(m_serial, detail));
                         return;
                     }
                     if (detail.contains(QStringLiteral("offline"), Qt::CaseInsensitive)) {
                         m_connectTimer.stop();
                         emit errorOccurred(QStringLiteral("Android ADB at %1 is unavailable: %2. "
                             "Check the guest IP address, TCP port 5555 listener, and any RSA authorization prompt. "
-                            "Automatic reconnect has stopped; repair the guest before restarting DroidBox.")
+                            "Automatic reconnect has stopped; repair the guest before restarting Sabi.")
                             .arg(m_serial, detail));
                         return;
                     }

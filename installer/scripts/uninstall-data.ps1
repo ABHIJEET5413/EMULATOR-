@@ -5,19 +5,19 @@ try {
     # Only this account's fixed application directory is eligible. Other users'
     # data is retained; no path is accepted from the command line or registry.
     $local=[Environment]::GetFolderPath('LocalApplicationData')
-    $target=[IO.Path]::GetFullPath((Join-Path $local 'DroidBox\DroidBox'))
-    $expected=[IO.Path]::GetFullPath($local).TrimEnd('\')+'\DroidBox\DroidBox'
-    if ($target -ne $expected -or -not $Delete) { throw 'Explicit deletion of this account''s DroidBox data is required.' }
+    $target=[IO.Path]::GetFullPath((Join-Path $local 'Sabi\Sabi'))
+    $expected=[IO.Path]::GetFullPath($local).TrimEnd('\')+'\Sabi\Sabi'
+    if ($target -ne $expected -or -not $Delete) { throw 'Explicit deletion of this account''s Sabi data is required.' }
     if (-not (Test-Path -LiteralPath $target)) { exit 0 }
-    if (Get-Process -Name DroidBox -ErrorAction SilentlyContinue) { throw 'Close all DroidBox windows before deleting instance data.' }
+    if (Get-Process -Name Sabi -ErrorAction SilentlyContinue) { throw 'Close all Sabi windows before deleting instance data.' }
     $pending=[Collections.Generic.Stack[string]]::new()
-    foreach($path in @((Join-Path $local 'DroidBox'),$target)) {
-        if ((Get-Item -LiteralPath $path -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'DroidBox data root must not be a junction or link.' }
+    foreach($path in @((Join-Path $local 'Sabi'),$target)) {
+        if ((Get-Item -LiteralPath $path -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Sabi data root must not be a junction or link.' }
     }
     $pending.Push($target)
     while($pending.Count) {
         foreach($entry in Get-ChildItem -LiteralPath $pending.Pop() -Force) {
-            if ($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'DroidBox data contains a junction or link. Remove it manually first.' }
+            if ($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Sabi data contains a junction or link. Remove it manually first.' }
             if ($entry.PSIsContainer) { $pending.Push($entry.FullName) }
         }
     }

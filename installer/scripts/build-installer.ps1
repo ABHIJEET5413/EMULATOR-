@@ -12,7 +12,7 @@ if($ForDistribution){
     if(-not (Test-Path -LiteralPath $inventory)){throw 'Public distribution requires a reviewed release-inventory.json. See BUILD.md.'}
     $approval=Get-Content $inventory -Raw | ConvertFrom-Json
     if($approval.complete -ne $true -or -not $approval.sourceOfferContact -or -not $approval.reviewedBy -or -not $approval.sourceArtifacts){throw 'Release inventory is incomplete.'}
-    if($approval.sourceOfferContact -ne 'https://github.com/HEARTLESS5413/EMULATOR-/issues'){throw 'Release contact must match SOURCE-OFFER.txt. Review both together before changing it.'}
+    if($approval.sourceOfferContact -ne 'https://github.com/ABHIJEET5413/EMULATOR-/issues'){throw 'Release contact must match SOURCE-OFFER.txt. Review both together before changing it.'}
     foreach($record in $approval.sourceArtifacts){$path=[IO.Path]::GetFullPath((Join-Path $bundle $record.path));if(-not $path.StartsWith($bundle+'\sources\',[StringComparison]::OrdinalIgnoreCase) -or -not $record.sha256 -or (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ne $record.sha256){throw "Missing or mismatched release source: $path"}}
     Copy-Item -LiteralPath $inventory -Destination (Join-Path $bundle 'notices\release-inventory.json') -Force
     $manifest.releaseReady=$true
@@ -23,9 +23,9 @@ foreach($record in $manifest.files){
     if((Get-Item -LiteralPath $path).Length -ne $record.bytes -or (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ne $record.sha256){throw "Staged payload changed: $path"}
 }
 $manifest | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $bundle 'manifest.json') -Encoding UTF8
-& $IsccPath /Qp (Join-Path $installer 'droidbox.iss')
+& $IsccPath /Qp (Join-Path $installer 'sabi.iss')
 if($LASTEXITCODE -ne 0){throw 'Inno Setup compilation failed.'}
-$output=Join-Path $installer 'Output\DroidBoxSetup.exe'
+$output=Join-Path $installer 'Output\SabiSetup.exe'
 if((Get-Item -LiteralPath $output).Length -ge 4294967296){throw 'The single EXE exceeds the Windows limit. Compact the image; do not enable disk spanning.'}
 Get-Item -LiteralPath $output | Format-List FullName,Length
 Get-FileHash -LiteralPath $output -Algorithm SHA256 | Format-List Algorithm,Hash,Path

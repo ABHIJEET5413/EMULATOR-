@@ -1,6 +1,6 @@
-# DroidBox Architecture
+# Sabi Architecture
 
-> This document describes every module in the DroidBox Android emulator,
+> This document describes every module in the Sabi Android emulator,
 > what it does, and why it exists. Updated as each phase is built.
 
 ---
@@ -9,7 +9,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                   DroidBox Host App                     │
+│                     Sabi Host App                       │
 │              (C++ / Qt 6 Desktop Application)           │
 │                                                         │
 │  ┌─────────┐  ┌──────────┐  ┌────────┐  ┌───────────┐  │
@@ -51,7 +51,7 @@ The main Windows application the user interacts with.
   instance data root and forwards later APK/instance launch requests over a
   user-only local socket. Requests are size-limited and validated; a second
   window is not started when the owner is still initializing.
-- A Qt message handler writes timestamped messages to `droidbox-<pid>.log`
+- A Qt message handler writes timestamped messages to `sabi-<pid>.log`
   under the user's application-local data directory and to stderr.
 - The Phase 1 CLI test harness is the way to exercise VM controls; the
   desktop GUI is introduced in Phase 2.
@@ -169,7 +169,7 @@ The main Windows application the user interacts with.
   approval instructions in the status bar, and poll only the existing
   transport's `get-state` for up to three minutes. They do not repeat
   `adb connect` or disconnect while Android displays its RSA prompt. Approval
-  continues into the boot/Ready flow without restarting DroidBox.
+  continues into the boot/Ready flow without restarting Sabi.
   An open host forward alone does not prove that
   Android's `adbd` is running. The provisioned guest uses
   `image-build/droidbox-adb.rc` to start authenticated TCP ADB on port 5555
@@ -241,10 +241,10 @@ The main Windows application the user interacts with.
 
 ### 4. `installer/` — Inno Setup Packaging
 
-- **What**: Inno Setup script that produces `DroidBoxSetup.exe`.
+- **What**: Inno Setup script that produces `SabiSetup.exe`.
 - **Why**: Single offline installer, no internet needed.
 - **Bundles**:
-  - `DroidBox.exe` + Qt DLLs (dynamic)
+  - `Sabi.exe` + Qt DLLs (dynamic)
   - `qemu-system-x86_64.exe` + QEMU DLLs
   - `bliss-provisioned.qcow2` (clean, standalone distribution base)
   - `adb.exe` + platform-tools
@@ -256,7 +256,7 @@ The main Windows application the user interacts with.
 
 #### Phase 6 implementation
 
-- `droidbox.iss`: one solid-compressed x64 offline EXE, full license screen,
+- `sabi.iss`: one solid-compressed x64 offline EXE, full license screen,
   shortcuts, quoted APK invocation and Open With registration. Its optional
   machine association preserves the previous default; Windows UserChoice is not
   overwritten. Runtime installation and original-user initialization are checked

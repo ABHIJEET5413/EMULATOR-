@@ -4,12 +4,12 @@ $root=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $installer=Join-Path $root 'installer'
 function Check([bool]$Condition,[string]$Name){if(-not $Condition){throw "[FAIL] $Name"};Write-Output "[PASS] $Name"}
 # Static packaging preflight only: no feature changes, installation or user-data deletion.
-foreach($file in @('droidbox.iss','check_whpx.ps1','scripts\post-install.ps1','scripts\uninstall-data.ps1','scripts\prepare-bundle.ps1','scripts\build-installer.ps1','licenses\LICENSE.txt','licenses\QEMU-LICENSE.txt','licenses\QT-LICENSE.txt','licenses\BLISS-LICENSE.txt','licenses\FDROID-LICENSE.txt','licenses\SOURCE-OFFER.txt','resources\droidbox.ico','resources\installer-banner.bmp')){Check (Test-Path -LiteralPath (Join-Path $installer $file) -PathType Leaf) "present: $file"}
+foreach($file in @('sabi.iss','check_whpx.ps1','scripts\post-install.ps1','scripts\uninstall-data.ps1','scripts\prepare-bundle.ps1','scripts\build-installer.ps1','licenses\LICENSE.txt','licenses\QEMU-LICENSE.txt','licenses\QT-LICENSE.txt','licenses\BLISS-LICENSE.txt','licenses\FDROID-LICENSE.txt','licenses\SOURCE-OFFER.txt','resources\droidbox.ico','resources\installer-banner.bmp')){Check (Test-Path -LiteralPath (Join-Path $installer $file) -PathType Leaf) "present: $file"}
 foreach($file in Get-ChildItem -LiteralPath $installer -Filter '*.ps1' -File -Recurse | Where-Object {$_.FullName -notlike '*\bundle\*' -and $_.FullName -notlike '*\Output\*'}){
     $tokens=$null;$errors=$null;[Management.Automation.Language.Parser]::ParseFile($file.FullName,[ref]$tokens,[ref]$errors) | Out-Null
     Check ($errors.Count -eq 0) "PowerShell parses: $($file.Name)"
 }
-$script=Get-Content (Join-Path $installer 'droidbox.iss') -Raw
+$script=Get-Content (Join-Path $installer 'sabi.iss') -Raw
 Check ($script -match 'DiskSpanning=no') 'single executable configured'
 Check ($script -match 'ExecAsOriginalUser') 'original-user initialization configured'
 Check ($script -notmatch '(?m)^\[UninstallDelete\]') 'uninstall does not erase kept data unconditionally'

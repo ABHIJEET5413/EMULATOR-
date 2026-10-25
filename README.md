@@ -1,11 +1,11 @@
-# DroidBox
+# Sabi
 
 **A native Windows desktop Android emulator built with C++17, Qt 6, QEMU, and WHPX.**
 
-DroidBox runs Bliss OS (Android-x86) inside QEMU, embeds its display in a Qt
+Sabi runs Bliss OS (Android-x86) inside QEMU, embeds its display in a Qt
 desktop window, and provides keyboard mapping, Android controls, APK installation,
 and multiple independent instances. Its offline installer bundles the host and
-runtime dependencies into one `DroidBoxSetup.exe`.
+runtime dependencies into one `SabiSetup.exe`.
 
 ## Current status
 
@@ -46,7 +46,7 @@ test scope, and remaining acceptance checklist.
 - [Architecture](#architecture)
 - [Requirements](#requirements)
 - [Build from source](#build-from-source)
-- [Use DroidBox](#use-droidbox)
+- [Use Sabi](#use-sabi)
 - [Instances, settings, and data](#instances-settings-and-data)
 - [Keyboard mapping](#keyboard-mapping)
 - [Run tests](#run-tests)
@@ -93,7 +93,7 @@ test scope, and remaining acceptance checklist.
 
 ```mermaid
 flowchart LR
-    Host["DroidBox: Qt desktop app"] -->|QMP| QEMU["QEMU process"]
+    Host["Sabi: Qt desktop app"] -->|QMP| QEMU["QEMU process"]
     Host --> ADB["ADB process"]
     QEMU --> WHPX["Windows Hypervisor Platform"]
     QEMU --> Guest["Bliss OS / Android-x86"]
@@ -176,8 +176,8 @@ runtime files and disk image described below.
 ### 1. Clone
 
 ```powershell
-git clone https://github.com/HEARTLESS5413/EMULATOR- droidbox
-cd droidbox
+git clone https://github.com/ABHIJEET5413/EMULATOR- sabi
+cd sabi
 ```
 
 ### 2. Supply local runtime inputs
@@ -238,24 +238,24 @@ launch from the repository root:
 ```powershell
 $env:PATH = "C:\Qt\6.12.0\msvc2022_64\bin;$env:PATH"
 $env:QT_QPA_PLATFORM_PLUGIN_PATH = "C:\Qt\6.12.0\msvc2022_64\plugins"
-.\cmake-build-dev\Release\DroidBox.exe --instances
+.\cmake-build-dev\Release\Sabi.exe --instances
 ```
 
 The first launch initializes default-instance data if needed. Without
 `--instances`, one configured instance launches directly; multiple instances
 open the list.
 
-## Use DroidBox
+## Use Sabi
 
 ### First boot and authorization
 
 1. Start an instance and wait for Android to reach its launcher.
 2. Select **Allow** if Android shows a USB debugging/RSA prompt for this host.
-3. Wait for DroidBox's status bar to show **Ready**. Navigation, APK installation,
+3. Wait for Sabi's status bar to show **Ready**. Navigation, APK installation,
    and screenshot actions depend on ADB readiness.
 
 The clean image keeps ADB authentication enabled and contains no personal host
-key. While approval is pending, DroidBox observes the existing transport instead
+key. While approval is pending, Sabi observes the existing transport instead
 of repeatedly connecting and disconnecting it.
 
 ### Install apps and transfer files
@@ -269,7 +269,7 @@ of repeatedly connecting and disconnecting it.
   `/sdcard/Download/` and request a media scan.
 
 The tested FOSS guest contains **Neo Store**, an F-Droid repository client.
-Proprietary Google Play/GApps are not part of DroidBox's packaging.
+Proprietary Google Play/GApps are not part of Sabi's packaging.
 
 ### Launch arguments
 
@@ -277,16 +277,16 @@ Use an existing instance name in the `--instance` examples below.
 
 ```powershell
 # Open the instance list
-.\cmake-build-dev\Release\DroidBox.exe --instances
+.\cmake-build-dev\Release\Sabi.exe --instances
 
 # Start a named instance
-.\cmake-build-dev\Release\DroidBox.exe --instance gaming
+.\cmake-build-dev\Release\Sabi.exe --instance gaming
 
 # Queue an APK for default
-.\cmake-build-dev\Release\DroidBox.exe "C:\Apps\Example App.apk"
+.\cmake-build-dev\Release\Sabi.exe "C:\Apps\Example App.apk"
 
 # Select an instance and queue an APK
-.\cmake-build-dev\Release\DroidBox.exe --instance gaming "C:\Apps\Example App.apk"
+.\cmake-build-dev\Release\Sabi.exe --instance gaming "C:\Apps\Example App.apk"
 ```
 
 The installer also uses `--initialize-only`: initialize default-instance data
@@ -318,12 +318,12 @@ after boot.
 
 | Data | Development checkout | Installed application |
 |---|---|---|
-| Instance config | `instances/<name>/config.json` | `%LOCALAPPDATA%\DroidBox\DroidBox\instances\<name>\config.json` |
+| Instance config | `instances/<name>/config.json` | `%LOCALAPPDATA%\Sabi\Sabi\instances\<name>\config.json` |
 | Writable disk | `instances/<name>/overlay.qcow2` | The same per-user instance directory. |
-| Backing base | `vm/images/`, as referenced by the overlay. | `%LOCALAPPDATA%\DroidBox\DroidBox\bases\<SHA-256>\bliss-provisioned.qcow2` |
-| Host logs | `%LOCALAPPDATA%\DroidBox\DroidBox\droidbox-<pid>.log` | The same per-user logging location. |
+| Backing base | `vm/images/`, as referenced by the overlay. | `%LOCALAPPDATA%\Sabi\Sabi\bases\<SHA-256>\bliss-provisioned.qcow2` |
+| Host logs | `%LOCALAPPDATA%\Sabi\Sabi\sabi-<pid>.log` | The same per-user logging location. |
 
-The installed application normally lives in `C:\Program Files\DroidBox`.
+The installed application normally lives in `C:\Program Files\Sabi`.
 Default-instance preparation runs as the original signed-in user. A verified
 base copy is retained in that user's data directory so overlays keep their backing
 image after uninstall. Different Windows accounts have separate data.
@@ -422,7 +422,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File installer/scripts/prepare-bu
 powershell -NoProfile -ExecutionPolicy Bypass -File installer/scripts/build-installer.ps1
 ```
 
-Output: **`installer/Output/DroidBoxSetup.exe`**. The recorded 1.81 GB build took
+Output: **`installer/Output/SabiSetup.exe`**. The recorded 1.81 GB build took
 approximately 29 minutes to compile. The wrapper prints its size and SHA-256.
 Generated bundle/output directories stay local.
 
@@ -469,7 +469,7 @@ For an authorized guest on the default host port, useful read-only diagnostics a
 .\vm\adb\adb.exe -s localhost:5555 shell getprop sys.boot_completed
 .\vm\adb\adb.exe -s localhost:5555 shell wm size
 .\vm\adb\adb.exe -s localhost:5555 shell wm density
-Get-Content "$env:LOCALAPPDATA/DroidBox/DroidBox/droidbox-*.log" -Tail 40
+Get-Content "$env:LOCALAPPDATA/Sabi/Sabi/sabi-*.log" -Tail 40
 ```
 
 For another instance, replace `5555` with its configured `adbHostPort`.
@@ -488,7 +488,7 @@ vm/
 image-build/              Image preparation and ADB first-boot repair
 instances/                Generated development instance data
 installer/
-  droidbox.iss            Inno Setup script
+  sabi.iss                Inno Setup script
   check_whpx.ps1          Installer WHPX detection/enablement/probe
   scripts/                Staging, build, initialization, cleanup helpers
   licenses/               Full texts, notices, source-offer information
@@ -542,7 +542,7 @@ relevant phase guide, and current architecture before changing modules.
 
 ## Licenses and redistribution
 
-DroidBox's original host application, tooling, and documentation are MIT-licensed.
+Sabi's original host application, tooling, and documentation are MIT-licensed.
 Bundled components retain their own terms:
 
 | Component | License summary |
@@ -561,6 +561,6 @@ Full texts and the project's MIT notice are in
 source availability, and outstanding release inventory items.
 
 Source requests and reproducible bug reports can be filed in the
-[project issue tracker](https://github.com/HEARTLESS5413/EMULATOR-/issues).
+[project issue tracker](https://github.com/ABHIJEET5413/EMULATOR-/issues).
 Include host/build versions, the affected instance, reproduction steps, relevant
 log excerpts, and which automated/manual checks were performed.

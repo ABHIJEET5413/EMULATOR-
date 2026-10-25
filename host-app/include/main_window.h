@@ -25,7 +25,7 @@ class MainWindow final : public QMainWindow {
     Q_OBJECT
 
 public:
-    /** Create the DroidBox desktop window and prepare Phase 1 VM control. */
+    /** Create the Sabi desktop window and prepare VM control. */
     explicit MainWindow(QWidget* parent = nullptr);
     /** Open a managed instance whose running lock has already been acquired. */
     MainWindow(InstanceManager* manager, const QString& name, QWidget* parent = nullptr);

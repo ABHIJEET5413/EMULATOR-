@@ -62,7 +62,7 @@ LaunchChannel::Role LaunchChannel::startOrForward(const QString& instancesRoot, 
     if (root.isEmpty() || QFileInfo(instancesRoot).isSymLink()) {
         m_error = "The instance directory must be an accessible directory, not a link."; return Role::Error;
     }
-    m_serverName = "DroidBox-" + QString::fromLatin1(QCryptographicHash::hash(
+    m_serverName = "Sabi-" + QString::fromLatin1(QCryptographicHash::hash(
         root.toCaseFolded().toUtf8(), QCryptographicHash::Sha256).toHex().left(32));
     m_lease = std::make_unique<QLockFile>(QDir(root).filePath(".ui.lock"));
     m_lease->setStaleLockTime(0);
@@ -70,18 +70,18 @@ LaunchChannel::Role LaunchChannel::startOrForward(const QString& instancesRoot, 
     // listening alone is not an ownership test. Hold a process lease as well.
     if (m_lease->tryLock(0)) {
         if (m_server.listen(m_serverName)) return Role::Primary;
-        m_error = "Cannot open the DroidBox launch channel: " + m_server.errorString();
+        m_error = "Cannot open the Sabi launch channel: " + m_server.errorString();
         m_lease.reset(); return Role::Error;
     }
     QLocalSocket socket;
     socket.connectToServer(m_serverName);
     if (!socket.waitForConnected(2000)) {
-        m_error = "Another DroidBox process owns these instances but is not accepting requests. Wait for it to finish starting or close it normally.";
+        m_error = "Another Sabi process owns these instances but is not accepting requests. Wait for it to finish starting or close it normally.";
         return Role::Error;
     }
     if (socket.write(message) != message.size()
         || (socket.bytesToWrite() && !socket.waitForBytesWritten(2000))) {
-        m_error = "Could not send the launch request to DroidBox."; return Role::Error;
+        m_error = "Could not send the launch request to Sabi."; return Role::Error;
     }
     QElapsedTimer timer; timer.start();
     QByteArray reply;
@@ -93,7 +93,7 @@ LaunchChannel::Role LaunchChannel::startOrForward(const QString& instancesRoot, 
         }
     }
     if (reply != "OK\n") {
-        m_error = "The running DroidBox did not acknowledge the request. It may still be starting.";
+        m_error = "The running Sabi did not acknowledge the request. It may still be starting.";
         return Role::Error;
     }
     return Role::Forwarded;

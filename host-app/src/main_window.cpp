@@ -138,7 +138,7 @@ MainWindow::MainWindow(QWidget* parent)
                     QMessageBox::warning(
                         this,
                         QStringLiteral("QEMU display not found"),
-                        QStringLiteral("QEMU is running, but DroidBox could not find its SDL window within 30 seconds. "
+                        QStringLiteral("QEMU is running, but Sabi could not find its SDL window within 30 seconds. "
                                        "Check that QEMU is using its SDL display backend and the same Windows privilege level."));
                 }
             });
@@ -269,7 +269,7 @@ void MainWindow::startVm()
             this,
             QStringLiteral("VM configuration not found"),
             QStringLiteral("Could not find vm/configs/default-instance.json. "
-                           "Run DroidBox from the project folder or place the vm folder next to the application."));
+                            "Run Sabi from the project folder or place the vm folder next to the application."));
         return;
     }
 

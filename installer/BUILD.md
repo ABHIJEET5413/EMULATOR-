@@ -1,4 +1,4 @@
-# Build DroidBoxSetup.exe
+# Build SabiSetup.exe
 
 Run in **Windows PowerShell**, from the repository root. Installation and first
 launch use bundled dependencies and never download them. Examples use Qt 6.12.0,
@@ -33,7 +33,7 @@ This command has no host-key argument.
 
 ```powershell
 cmake -B cmake-build-phase6-fixes -S host-app -G "Visual Studio 17 2022" -A x64 -DCMAKE_PREFIX_PATH="C:/Qt/6.12.0/msvc2022_64" -DBUILD_TESTING=OFF
-cmake --build cmake-build-phase6-fixes --config Release --target DroidBox
+cmake --build cmake-build-phase6-fixes --config Release --target Sabi
 ```
 
 The separate build directory avoids replacing a running development executable.
@@ -76,7 +76,7 @@ need additional space and must stay while any overlay references them.
 powershell -NoProfile -ExecutionPolicy Bypass -File installer/scripts/build-installer.ps1
 ```
 
-Output: **`installer/Output/DroidBoxSetup.exe`**, followed by its SHA-256.
+Output: **`installer/Output/SabiSetup.exe`**, followed by its SHA-256.
 No external `.bin` files. Solid `lzma2/ultra64` compression can take a long
 time: it took about 35 minutes on the acceptance PC. The output EXE grows during
 compilation; do not install or copy it until ISCC and the build script report
@@ -86,7 +86,7 @@ Use `-IsccPath "C:/path/to/ISCC.exe"` for another compiler location.
 Direct compiler equivalent after staging:
 
 ```powershell
-& "$env:LOCALAPPDATA/Programs/InnoSetup6/ISCC.exe" installer/droidbox.iss
+& "$env:LOCALAPPDATA/Programs/InnoSetup6/ISCC.exe" installer/sabi.iss
 ```
 
 Prefer the wrapper for payload integrity and distribution review checks.
@@ -106,7 +106,7 @@ Before publishing, collect additional corresponding sources/notices into
 
 - `complete`: true only after completing the actual inventory;
 - `reviewedBy`: accountable distributor/reviewer;
-- `sourceOfferContact`: `https://github.com/HEARTLESS5413/EMULATOR-/issues`, which
+- `sourceOfferContact`: `https://github.com/ABHIJEET5413/EMULATOR-/issues`, which
   must be accessible to recipients and match SOURCE-OFFER.txt;
 - `sourceArtifacts`: a nonempty array of records with `path` (under `sources/`)
   and the actual `sha256` for each reviewed source delivery artifact.
@@ -129,7 +129,7 @@ and supply them alongside binaries or fulfill source requests as applicable.
   Explicitly starting Setup as another account uses that account's profile.
   SYSTEM/service installation cannot initialize personal instance data.
 - Application files go to Program Files. Writable data is under
-  `%LOCALAPPDATA%\DroidBox\DroidBox`: `instances`, `bases/<SHA-256>`, logs.
+  `%LOCALAPPDATA%\Sabi\Sabi`: `instances`, `bases/<SHA-256>`, logs.
   A verified, atomic user base copy keeps overlays usable when uninstall retains
   data. New releases retain old base versions. Installed instances resolve QEMU
   from the current installation, including after reinstalling elsewhere.
@@ -138,7 +138,7 @@ and supply them alongside binaries or fulfill source requests as applicable.
   Windows component files produce instructions. Pending states suppress launch.
 - APK Open With registration is installed. The optional association task sets
   the machine default while saving its previous value. Windows UserChoice is
-  untouched; uninstall restores a default only if it still points to DroidBox.
+  untouched; uninstall restores a default only if it still points to Sabi.
 - Uninstall asks about the current uninstaller account's data. No and silent
   uninstall preserve both overlays and bases. Other accounts' data is retained.
   Cleanup refuses junctions/open disk writers; no unconditional instance erasure.
@@ -150,7 +150,7 @@ a clean-machine install or boot has passed.
 
 ```powershell
 # Elevated PowerShell after installation:
-powershell -NoProfile -ExecutionPolicy Bypass -File 'C:/Program Files/DroidBox/check_whpx.ps1' -Probe
+powershell -NoProfile -ExecutionPolicy Bypass -File 'C:/Program Files/Sabi/check_whpx.ps1' -Probe
 Get-WindowsOptionalFeature -Online -FeatureName HypervisorPlatform
 # Only if necessary; restart afterwards:
 Enable-WindowsOptionalFeature -Online -FeatureName HypervisorPlatform -NoRestart -LimitAccess

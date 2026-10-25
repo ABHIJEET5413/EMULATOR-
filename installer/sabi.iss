@@ -1,17 +1,17 @@
 #ifndef AppVersion
-  #define AppVersion "0.1.0"
+  #define AppVersion "2.0.0"
 #endif
 
 [Setup]
 AppId={{43FEA266-EB75-48F3-906D-C7D671ECFEA8}
-AppName=DroidBox
+AppName=Sabi
 AppVersion={#AppVersion}
-AppPublisher=DroidBox
-AppPublisherURL=https://github.com/HEARTLESS5413/EMULATOR-
-DefaultDirName={autopf}\DroidBox
-DefaultGroupName=DroidBox
+AppPublisher=Sabi
+AppPublisherURL=https://github.com/ABHIJEET5413/EMULATOR-
+DefaultDirName={autopf}\Sabi
+DefaultGroupName=Sabi
 OutputDir=Output
-OutputBaseFilename=DroidBoxSetup
+OutputBaseFilename=SabiSetup
 Compression=lzma2/ultra64
 SolidCompression=yes
 DiskSpanning=no
@@ -36,7 +36,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a Desktop shortcut"; Flags: checkedonce
-Name: "apkassociation"; Description: "Associate .apk files with DroidBox"; Flags: checkedonce
+Name: "apkassociation"; Description: "Associate .apk files with Sabi"; Flags: checkedonce
 
 [Files]
 ; These must precede the solid-compressed image for fast prerequisite extraction.
@@ -57,19 +57,19 @@ Source: "scripts\post-install.ps1"; DestDir: "{app}\installer-scripts"; Flags: i
 Source: "scripts\uninstall-data.ps1"; DestDir: "{app}\installer-scripts"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\DroidBox"; Filename: "{app}\DroidBox.exe"; WorkingDir: "{app}"; IconFilename: "{app}\resources\droidbox.ico"
-Name: "{group}\Uninstall DroidBox"; Filename: "{uninstallexe}"
-Name: "{commondesktop}\DroidBox"; Filename: "{app}\DroidBox.exe"; WorkingDir: "{app}"; IconFilename: "{app}\resources\droidbox.ico"; Tasks: desktopicon
+Name: "{group}\Sabi"; Filename: "{app}\Sabi.exe"; WorkingDir: "{app}"; IconFilename: "{app}\resources\droidbox.ico"
+Name: "{group}\Uninstall Sabi"; Filename: "{uninstallexe}"
+Name: "{commondesktop}\Sabi"; Filename: "{app}\Sabi.exe"; WorkingDir: "{app}"; IconFilename: "{app}\resources\droidbox.ico"; Tasks: desktopicon
 
 [Registry]
 Root: HKLM; Subkey: "Software\Classes\.apk"; ValueType: none; Flags: uninsdeletekeyifempty
-Root: HKLM; Subkey: "Software\Classes\.apk\OpenWithProgids"; ValueType: string; ValueName: "DroidBox.APK"; ValueData: ""; Flags: uninsdeletevalue uninsdeletekeyifempty
-Root: HKLM; Subkey: "Software\Classes\DroidBox.APK"; ValueType: string; ValueData: "Android Application Package"; Flags: uninsdeletekey
-Root: HKLM; Subkey: "Software\Classes\DroidBox.APK\DefaultIcon"; ValueType: string; ValueData: """{app}\resources\droidbox.ico"""
-Root: HKLM; Subkey: "Software\Classes\DroidBox.APK\shell\open\command"; ValueType: string; ValueData: """{app}\DroidBox.exe"" ""%1"""
+Root: HKLM; Subkey: "Software\Classes\.apk\OpenWithProgids"; ValueType: string; ValueName: "Sabi.APK"; ValueData: ""; Flags: uninsdeletevalue uninsdeletekeyifempty
+Root: HKLM; Subkey: "Software\Classes\Sabi.APK"; ValueType: string; ValueData: "Android Application Package"; Flags: uninsdeletekey
+Root: HKLM; Subkey: "Software\Classes\Sabi.APK\DefaultIcon"; ValueType: string; ValueData: """{app}\resources\droidbox.ico"""
+Root: HKLM; Subkey: "Software\Classes\Sabi.APK\shell\open\command"; ValueType: string; ValueData: """{app}\Sabi.exe"" ""%1"""
 
 [Run]
-Filename: "{app}\DroidBox.exe"; Description: "Launch DroidBox"; WorkingDir: "{app}"; Flags: postinstall nowait skipifsilent runasoriginaluser; Check: CanLaunch
+Filename: "{app}\Sabi.exe"; Description: "Launch Sabi"; WorkingDir: "{app}"; Flags: postinstall nowait skipifsilent runasoriginaluser; Check: CanLaunch
 
 [Code]
 var
@@ -85,7 +85,7 @@ function CheckWhpx(const ScriptPath, Options: String): Integer;
 var Code, Index: Integer; ResultFile: String; Lines: TArrayOfString;
 begin
   Result := 20;
-  ResultFile := ExpandConstant('{tmp}\droidbox-whpx.json');
+  ResultFile := ExpandConstant('{tmp}\sabi-whpx.json');
   DeleteFile(ResultFile + '.txt');
   LastWhpxMessage := '';
   if Exec(PowerShell, '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ScriptPath + '" ' + Options + ' -ResultPath "' + ResultFile + '"',
@@ -167,17 +167,17 @@ begin
       ExpandConstant('{app}\installer-scripts\post-install.ps1') + '" -InstallRoot "' + ExpandConstant('{app}') + '"',
       ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, Code) then
     RaiseException('Could not initialize the original user''s default instance. Run Setup from a signed-in Windows account.');
-  if Code <> 0 then RaiseException('Default instance creation failed. Check free disk space and the DroidBox log in your LocalAppData folder.');
+  if Code <> 0 then RaiseException('Default instance creation failed. Check free disk space and the Sabi log in your LocalAppData folder.');
 
   if WizardIsTaskSelected('apkassociation') then begin
     // Preserve the previous machine default. Windows UserChoice is never edited.
-    if not RegValueExists(HKLM, 'Software\DroidBox\Installer', 'PreviousApk') then begin
+    if not RegValueExists(HKLM, 'Software\Sabi\Installer', 'PreviousApk') then begin
       Previous := '';
       RegQueryStringValue(HKLM, 'Software\Classes\.apk', '', Previous);
-      if Previous = 'DroidBox.APK' then Previous := '';
-      RegWriteStringValue(HKLM, 'Software\DroidBox\Installer', 'PreviousApk', Previous);
+      if (Previous = 'Sabi.APK') or (Previous = 'DroidBox.APK') then Previous := '';
+      RegWriteStringValue(HKLM, 'Software\Sabi\Installer', 'PreviousApk', Previous);
     end;
-    RegWriteStringValue(HKLM, 'Software\Classes\.apk', '', 'DroidBox.APK');
+    RegWriteStringValue(HKLM, 'Software\Classes\.apk', '', 'Sabi.APK');
   end;
 
   if not RestartRequired then begin
@@ -192,19 +192,19 @@ procedure CurUninstallStepChanged(Step: TUninstallStep);
 var Code: Integer; Current, Previous: String;
 begin
   if Step <> usUninstall then Exit;
-  if RegQueryStringValue(HKLM, 'Software\Classes\.apk', '', Current) and (Current = 'DroidBox.APK') then begin
+  if RegQueryStringValue(HKLM, 'Software\Classes\.apk', '', Current) and (Current = 'Sabi.APK') then begin
     Previous := '';
-    RegQueryStringValue(HKLM, 'Software\DroidBox\Installer', 'PreviousApk', Previous);
+    RegQueryStringValue(HKLM, 'Software\Sabi\Installer', 'PreviousApk', Previous);
     if Previous <> '' then RegWriteStringValue(HKLM, 'Software\Classes\.apk', '', Previous)
     else RegDeleteValue(HKLM, 'Software\Classes\.apk', '');
   end;
-  RegDeleteKeyIncludingSubkeys(HKLM, 'Software\DroidBox\Installer');
+  RegDeleteKeyIncludingSubkeys(HKLM, 'Software\Sabi\Installer');
   // No unconditional UninstallDelete entry: Keep really preserves overlays AND bases.
   if not UninstallSilent and (MsgBox('Delete Android instance data for the Windows account running this uninstaller?' + #13#10 +
       'Choose No to keep apps and data. Data belonging to other Windows accounts is retained.', mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES) then begin
     if not Exec(PowerShell, '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' +
         ExpandConstant('{app}\installer-scripts\uninstall-data.ps1') + '" -Delete', '', SW_HIDE, ewWaitUntilTerminated, Code) then
       MsgBox('Could not start data cleanup. Your Android data was retained.', mbInformation, MB_OK)
-    else if Code <> 0 then MsgBox('Data cleanup could not finish. Close DroidBox and QEMU, then remove your LocalAppData\DroidBox\DroidBox directory manually after preserving anything you need.', mbInformation, MB_OK);
+    else if Code <> 0 then MsgBox('Data cleanup could not finish. Close Sabi and QEMU, then remove your LocalAppData\Sabi\Sabi directory manually after preserving anything you need.', mbInformation, MB_OK);
   end;
 end;
