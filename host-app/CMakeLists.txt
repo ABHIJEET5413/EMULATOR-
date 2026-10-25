@@ -72,6 +72,7 @@ file(GENERATE
 )
 
 add_custom_command(TARGET Sabi POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E rm -f "$<TARGET_FILE_DIR:Sabi>/DroidBox.exe"
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_CURRENT_SOURCE_DIR}/resources/keymaps"
         "$<TARGET_FILE_DIR:Sabi>/resources/keymaps"
