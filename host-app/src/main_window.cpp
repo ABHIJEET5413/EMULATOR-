@@ -13,6 +13,7 @@
 #include <QMessageBox>
 #include <QStandardPaths>
 #include <QStatusBar>
+#include <QStyle>
 #include <QScreen>
 #include <QToolBar>
 #include <QUrl>
@@ -31,6 +32,13 @@ MainWindow::MainWindow(QWidget* parent)
 {
     setWindowTitle(QStringLiteral("Sabi"));
     setMinimumSize(480, 700);
+    setStyleSheet(QStringLiteral(
+        "QMainWindow { background: #171a21; color: #edf2f7; }"
+        "QToolBar { background: #202633; border: 0; spacing: 8px; padding: 8px; }"
+        "QToolButton { border-radius: 8px; padding: 8px; }"
+        "QToolButton:hover { background: #35445d; }"
+        "QComboBox { background: #2a3343; border: 1px solid #465874; border-radius: 6px; padding: 5px; min-width: 94px; }"
+        "QStatusBar { background: #202633; color: #cbd5e1; }"));
     // Leave enough horizontal room for Android's first-run authorization
     // dialogs beside the vertical toolbar, even on a 1280px-wide desktop.
     resize(900, 850);
@@ -42,7 +50,7 @@ MainWindow::MainWindow(QWidget* parent)
 
     createToolbar();
 
-    m_statusLabel = new QLabel(QStringLiteral("Status: Starting"), this);
+    m_statusLabel = new QLabel(QStringLiteral("Sabi • Starting"), this);
     statusBar()->addPermanentWidget(m_statusLabel);
     setAdbActionsEnabled(false);
 
@@ -166,34 +174,41 @@ void MainWindow::createToolbar()
     toolbar->setOrientation(Qt::Vertical);
     toolbar->setMovable(false);
     toolbar->setFloatable(false);
-    toolbar->setToolButtonStyle(Qt::ToolButtonTextOnly);
-    toolbar->setMinimumWidth(112);
+    toolbar->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    toolbar->setIconSize(QSize(22, 22));
+    toolbar->setMinimumWidth(52);
 
-    const auto addStub = [this, toolbar](const QString& label) {
+    const auto iconFor = [this](const QStyle::StandardPixmap icon) {
+        return style()->standardIcon(icon);
+    };
+    const auto addStub = [this, toolbar, &iconFor](const QString& label, const QStyle::StandardPixmap icon) {
         QAction* action = toolbar->addAction(label);
+        action->setIcon(iconFor(icon)); action->setToolTip(label);
         connect(action, &QAction::triggered, this, [label]() {
             qInfo().noquote() << QStringLiteral("%1 button pressed (not yet connected).")
                                      .arg(label);
         });
     };
 
-    const auto addKeyAction = [this, toolbar](const QString& label, const int keycode) {
+    const auto addKeyAction = [this, toolbar, &iconFor](const QString& label, const int keycode, const QStyle::StandardPixmap icon) {
         QAction* action = toolbar->addAction(label);
+        action->setIcon(iconFor(icon)); action->setToolTip(label);
         m_adbActions.append(action);
         connect(action, &QAction::triggered, this, [this, keycode]() {
             m_adbBridge.sendKeyEvent(keycode);
         });
     };
 
-    addKeyAction(QStringLiteral("Home"), 3);
-    addKeyAction(QStringLiteral("Back"), 4);
-    addKeyAction(QStringLiteral("Recents"), 187);
+    addKeyAction(QStringLiteral("Home"), 3, QStyle::SP_DirHomeIcon);
+    addKeyAction(QStringLiteral("Back"), 4, QStyle::SP_ArrowBack);
+    addKeyAction(QStringLiteral("Recents"), 187, QStyle::SP_FileDialogDetailedView);
     toolbar->addSeparator();
-    addKeyAction(QStringLiteral("Volume +"), 24);
-    addKeyAction(QStringLiteral("Volume -"), 25);
-    addKeyAction(QStringLiteral("Power"), 26);
+    addKeyAction(QStringLiteral("Volume +"), 24, QStyle::SP_MediaVolume);
+    addKeyAction(QStringLiteral("Volume -"), 25, QStyle::SP_MediaVolumeMuted);
+    addKeyAction(QStringLiteral("Power"), 26, QStyle::SP_BrowserStop);
     toolbar->addSeparator();
     QAction* rotateAction = toolbar->addAction(QStringLiteral("Rotate"));
+    rotateAction->setIcon(iconFor(QStyle::SP_BrowserReload)); rotateAction->setToolTip(QStringLiteral("Rotate"));
     connect(rotateAction, &QAction::triggered, this, [this] {
         if (!m_instanceManager || m_instanceName.isEmpty()) return;
         auto config = m_instanceManager->getConfig(m_instanceName);
@@ -214,14 +229,17 @@ void MainWindow::createToolbar()
         applyLiveDisplaySettings();
     });
     QAction* screenshotAction = toolbar->addAction(QStringLiteral("Screenshot"));
+    screenshotAction->setIcon(iconFor(QStyle::SP_DialogSaveButton)); screenshotAction->setToolTip(QStringLiteral("Screenshot"));
     m_adbActions.append(screenshotAction);
     connect(screenshotAction, &QAction::triggered, this, &MainWindow::saveScreenshot);
     QAction* installAction = toolbar->addAction(QStringLiteral("Install APK"));
+    installAction->setIcon(iconFor(QStyle::SP_FileDialogNewFolder)); installAction->setToolTip(QStringLiteral("Install APK"));
     m_adbActions.append(installAction);
     connect(installAction, &QAction::triggered, this, &MainWindow::installSelectedApk);
     toolbar->addSeparator();
 
     m_fullscreenAction = toolbar->addAction(QStringLiteral("Fullscreen"));
+    m_fullscreenAction->setIcon(iconFor(QStyle::SP_TitleBarMaxButton)); m_fullscreenAction->setToolTip(QStringLiteral("Fullscreen"));
     m_fullscreenAction->setCheckable(true);
     connect(m_fullscreenAction, &QAction::triggered,
             this, [this](const bool enabled) {
@@ -245,8 +263,8 @@ void MainWindow::createToolbar()
     });
 
     toolbar->addSeparator();
-    addStub(QStringLiteral("Shared Folder"));
     QAction* settings = toolbar->addAction(QStringLiteral("Settings"));
+    settings->setIcon(iconFor(QStyle::SP_FileDialogContentsView)); settings->setToolTip(QStringLiteral("Instance Settings"));
     connect(settings, &QAction::triggered, this, [this] {
         if (!m_instanceManager) return;
         SettingsDialog dialog(m_instanceManager->getConfig(m_instanceName), m_instanceManager->isRunning(m_instanceName), this);
@@ -261,7 +279,9 @@ void MainWindow::createToolbar()
             QMessageBox::warning(this, "Settings not saved", m_instanceManager->lastError());
         }
     });
-    connect(toolbar->addAction(QStringLiteral("Instances")), &QAction::triggered,
+    QAction* instancesAction = toolbar->addAction(QStringLiteral("Instances"));
+    instancesAction->setIcon(iconFor(QStyle::SP_DirIcon)); instancesAction->setToolTip(QStringLiteral("Instances"));
+    connect(instancesAction, &QAction::triggered,
             this, &MainWindow::instanceListRequested);
     addToolBar(Qt::RightToolBarArea, toolbar);
 }

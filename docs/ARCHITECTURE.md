@@ -407,6 +407,9 @@ Physical key → InputHandler → KeymapEngine
   applied through ADB when Android is ready. CPU/RAM and QEMU raster changes still require restart.
 - `MainWindow` exposes the main display profiles in the toolbar and has a Rotate action. It saves profile
   changes per instance, applies `wm size`/`wm density` live after boot, and saves rotation as Custom.
+- The Sabi host uses a compact dark icon toolbar with accessible action tooltips. Shared Folder is deliberately
+  hidden because the guest does not yet provide a verified file-sharing transport; file drag-and-drop remains
+  the supported ADB transfer path.
 - `main.cpp`: imports the existing default disk without recreating it, launches the sole instance directly,
   otherwise shows the launcher. APK arguments target default; `--instance NAME` selects one;
   `--instances` explicitly opens the launcher. Installed writable data uses AppLocalDataLocation.
