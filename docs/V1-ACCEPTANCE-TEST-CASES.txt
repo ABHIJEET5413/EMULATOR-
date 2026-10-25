@@ -1,0 +1,318 @@
+DroidBox Version 1 acceptance test cases
+=========================================
+
+Purpose
+-------
+This is the master acceptance test suite for deciding whether a DroidBox
+Version 1 candidate works for a user. Run it on a clean Windows 10/11 x64 PC
+or clean Windows user account. Use the published installer and do not use a
+development build, copied ADB keys, copied QEMU files, or old DroidBox data.
+
+This document records feature acceptance. It does not replace the legal
+release gate: the third-party source, notices, and license inventory must also
+be complete before a public production distribution.
+
+Result values
+-------------
+PASS       Expected behavior occurred and evidence was recorded.
+FAIL       Expected behavior did not occur.
+BLOCKED    A required external condition is absent, such as firmware
+           virtualization or administrator approval. Record the condition.
+NOT RUN    The test was intentionally not attempted. State why.
+
+Pass rule
+---------
+Version 1 passes only when every applicable test below passes. TC-40 needs a
+second newer installer; mark it NOT RUN for a first release candidate, but it
+must pass before a version upgrade is distributed. Any FAIL requires a fix and
+a fresh run of that failed test plus affected dependent tests.
+
+Test materials
+--------------
+1. The official DroidBoxSetup.exe release candidate and its SHA-256 hash.
+2. A small legal-to-install test APK.
+3. A small non-APK test file, such as a JPG or TXT file.
+4. A second newer DroidBoxSetup.exe only for TC-40.
+5. A PC with at least 15 GB free disk space, Windows 10 1809+ or Windows 11,
+   x64 CPU, and firmware virtualization support.
+
+Evidence to collect for every failure
+-------------------------------------
+* Screenshot of the window/error.
+* Exact command and full relevant output.
+* The final 50 lines of DroidBox logs:
+
+    Get-Content "$env:LOCALAPPDATA\DroidBox\DroidBox\droidbox-*.log" -Tail 50
+
+* QEMU/ADB logs if created.
+* Precise first-failure steps. Do not repeatedly retry a failed ADB connection.
+
+Preconditions
+-------------
+PC-01  Clean test state
+  Steps: Confirm the following are absent before installation:
+
+    Test-Path "$env:LOCALAPPDATA\DroidBox\DroidBox"
+    Test-Path "${env:ProgramFiles}\DroidBox"
+    Test-Path "$env:USERPROFILE\.android\adbkey"
+
+  Expected: All return False. A test user without existing Android/ADB data is
+  used.
+  Pass: All values are False.
+
+PC-02  Hardware and Windows readiness
+  Steps: Record Windows version/build, CPU model, RAM, free storage, and run
+  this elevated PowerShell command:
+
+    Get-WindowsOptionalFeature -Online -FeatureName HypervisorPlatform
+
+  Expected: Windows is supported. Record whether HypervisorPlatform is Enabled
+  or Disabled. Firmware VT-x/AMD-V/SVM must be enabled before VM boot tests.
+  Pass: Environment is recorded and has sufficient requirements.
+
+Installer and offline package
+-----------------------------
+TC-01  Installer integrity
+  Steps: Download only the official release asset. Run:
+
+    Get-FileHash "C:\path\to\DroidBoxSetup.exe" -Algorithm SHA256
+
+  Expected: Hash exactly matches the release note.
+  Pass: Exact match. Fail: Do not run the installer.
+
+TC-02  Offline installation
+  Steps: Disconnect Wi-Fi and Ethernet. Run the installer. Select an install
+  path with spaces, for example C:\Program Files\DroidBox Test. Accept the
+  license and leave Start Menu, Desktop, and APK association options selected.
+  Expected: It completes without downloading dependencies or reporting missing
+  Qt/QEMU/ADB/runtime files.
+  Pass: Installation completes successfully while offline.
+
+TC-03  WHPX enabled path
+  Precondition: HypervisorPlatform was Enabled before setup.
+  Steps: Complete setup and inspect its acceleration status.
+  Expected: Setup recognizes the enabled feature; no WHPX-only reboot request.
+  Pass: The feature is accepted and the installed probe passes.
+
+TC-04  WHPX enablement path
+  Precondition: HypervisorPlatform was Disabled before setup.
+  Steps: Let setup offer to enable Windows Hypervisor Platform. Approve it and
+  reboot if requested. Then run as administrator:
+
+    powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Program Files\DroidBox Test\check_whpx.ps1" -Probe -QemuPath "C:\Program Files\DroidBox Test\vm\qemu\qemu-system-x86_64.exe"
+
+  Expected: HypervisorPlatform changes to Enabled; probe reports Ready and
+  probePassed=true with exit code 0.
+  Pass: All expected results occur. Blocked: Firmware virtualization is off.
+
+TC-05  Installed package layout
+  Steps: Verify the selected installation root contains DroidBox.exe,
+  Qt6Core.dll, Qt6Gui.dll, Qt6Widgets.dll, platforms\qwindows.dll,
+  vm\qemu\qemu-system-x86_64.exe, vm\qemu\qemu-img.exe, vm\adb\adb.exe,
+  vm\images\bliss-provisioned.qcow2, licenses, and source/notices directories.
+  Expected: Every listed component exists.
+  Pass: All paths exist.
+
+TC-06  Shortcuts and APK association
+  Steps: Open DroidBox from the Start Menu and Desktop shortcut. In Explorer,
+  confirm an APK file is associated with DroidBox.
+  Expected: Both shortcuts launch the application and APK uses DroidBox.
+  Pass: All three work.
+
+VM lifecycle and Android boot
+-----------------------------
+TC-10  Default instance creation
+  Steps: After install, check:
+
+    Get-ChildItem "$env:LOCALAPPDATA\DroidBox\DroidBox\instances\default" -Force
+
+  Expected: config.json and overlay.qcow2 exist.
+  Pass: The per-user default instance exists and the base image remains in the
+  installed vm\images directory.
+
+TC-11  First launch and embedded display
+  Steps: Launch DroidBox. Wait for Android to boot.
+  Expected: QEMU's guest display appears inside the DroidBox application, not
+  as an unusable standalone QEMU window. Android reaches first screen/Home.
+  Pass: Guest display is visible, usable, and Android Home appears.
+
+TC-12  Android ADB RSA authorization
+  Steps: When Android shows "Allow USB debugging?", select Allow. Do not copy
+  a host ADB private key from another PC.
+  Expected: The authorization prompt is visible on a fresh overlay and Android
+  accepts the approval.
+  Pass: ADB later reports the transport as device.
+
+TC-13  ADB boot readiness
+  Steps: From the installed vm\adb folder, run (replace 5555 if config.json
+  uses another adbHostPort):
+
+    .\adb.exe devices -l
+    .\adb.exe -s localhost:5555 get-state
+    .\adb.exe -s localhost:5555 shell getprop sys.boot_completed
+    .\adb.exe -s localhost:5555 shell getprop ro.build.version.release
+
+  Expected: localhost:5555 is device, get-state is device, boot_completed is
+  1, and Android version is returned.
+  Pass: Every command has the expected output.
+
+TC-14  Graceful shutdown and relaunch
+  Steps: Close DroidBox normally. Confirm qemu-system-x86_64.exe exits. Start
+  DroidBox again.
+  Expected: QEMU exits cleanly and the same instance returns to Android Home.
+  Pass: No orphan QEMU process, crash, or data loss.
+
+TC-15  Offline boot
+  Steps: Disconnect the network, reboot Windows, and start DroidBox again.
+  Expected: Android reaches Home and ADB remains usable without downloads.
+  Pass: Offline boot succeeds.
+
+Display, input, and keymaps
+---------------------------
+TC-20  Mouse/touch interaction
+  Steps: Use the mouse in Android to open Settings, select items, scroll, and
+  return to Home.
+  Expected: Pointer actions target the correct guest location.
+  Pass: Taps, drag, and scrolling work without offset or host crash.
+
+TC-21  Keyboard typing and focus
+  Steps: Open an Android text field. Type a distinct sentence. Click outside
+  the guest and type again in a host dialog if available.
+  Expected: Text enters only the focused guest field; host controls retain
+  normal typing when focused.
+  Pass: Keyboard focus and typing behave correctly.
+
+TC-22  Fullscreen
+  Steps: Press the Fullscreen toolbar control, use mouse/keyboard in the
+  fullscreen guest, then exit fullscreen.
+  Expected: Guest fills the intended window area and returns cleanly.
+  Pass: Both enter and exit work with input preserved.
+
+TC-23  Default keymap
+  Steps: Load the default keymap. Exercise each configured action while an
+  Android app is visible: tap, hold, swipe, passthrough, and repeat-tap.
+  Expected: Each action is dispatched at the configured scaled coordinate.
+  Pass: All five action types work; releasing/focus loss releases held input.
+
+TC-24  WASD gaming keymap and coordinate scaling
+  Steps: Load wasd-gaming.json. Test its mapped keys at the default resolution,
+  then change to a supported different display resolution and repeat.
+  Expected: Mapping retains its intended relative Android-screen position.
+  Pass: WASD mappings work at both resolutions without duplicate key presses.
+
+ADB features and toolbar controls
+--------------------------------
+TC-30  Navigation and volume toolbar buttons
+  Steps: In Android, use Home, Back, Recents, Volume Up, and Volume Down.
+  Expected: Each sends the matching Android action.
+  Pass: All actions affect the guest and no host crash occurs.
+
+TC-31  Screenshot
+  Steps: Use the Screenshot toolbar control and open the saved PNG.
+  Expected: A valid PNG shows the current guest screen.
+  Pass: File opens and is a correctly captured Android screenshot.
+
+TC-32  APK installation by button
+  Steps: Use Install APK and choose the test APK.
+  Expected: DroidBox reports Android installation result and the app appears.
+  Pass: APK installs and launches in Android.
+
+TC-33  APK installation by drag and drop
+  Steps: Drag the test APK onto the DroidBox window.
+  Expected: The same installation flow completes.
+  Pass: APK installs successfully.
+
+TC-34  APK installation by file association
+  Steps: Close DroidBox, double-click the test APK in Explorer, and wait for
+  DroidBox to launch and process it.
+  Expected: The application starts once and installs the APK into the guest.
+  Pass: Association, single-instance handoff, and install succeed.
+
+TC-35  Non-APK file push and media scan
+  Steps: Drag a JPG or TXT file onto DroidBox. In Android, check Downloads;
+  for JPG also check Gallery after allowing time for scanning.
+  Expected: File appears at /sdcard/Download and is discoverable by Android.
+  Pass: File transfer and media scan both work.
+
+Multi-instance and settings
+---------------------------
+TC-36  Create and boot another instance
+  Steps: Use the instance list to create a second named instance. Start it.
+  Expected: A distinct config and qcow2 overlay are created; Android boots.
+  Pass: New instance runs without changing the default instance.
+
+TC-37  Per-instance settings
+  Steps: Change CPU, RAM, resolution, and DPI for the second instance. Save
+  and restart that instance.
+  Expected: Values validate, persist in its config, and take effect after
+  restart. Android receives display/DPI updates after ADB is ready.
+  Pass: Changes apply only to the selected instance.
+
+TC-38  Clone and isolation
+  Steps: Clone an instance. In one guest create a file or install a test app.
+  Boot the other guest and check for that new change.
+  Expected: Each overlay has independent later changes.
+  Pass: One instance's new data does not appear in the other.
+
+TC-39  Delete and factory reset safeguards
+  Steps: Attempt to delete an instance and confirm the UI asks for deliberate
+  confirmation. For a stopped test instance, perform factory reset then boot.
+  Expected: Only the selected instance overlay/data is deleted or replaced;
+  base image and other instances remain usable.
+  Pass: Confirmation and data isolation work.
+
+Upgrade and removal
+-------------------
+TC-40  Upgrade retention
+  Precondition: A newer test installer is available.
+  Steps: On the older build, install a recognizable APK and create a Download
+  file. Close DroidBox. Install the newer build to the same directory, then
+  launch DroidBox.
+  Expected: Guest boots; installed APK, Download file, and instance settings
+  remain.
+  Pass: App data and selected settings survive upgrade.
+
+TC-41  Uninstall, keep data
+  Steps: Close DroidBox and ensure QEMU has exited. Uninstall from Windows,
+  choosing Keep Android data. Check program files, shortcuts, and APK
+  association, then reinstall and boot.
+  Expected: Program files/shortcuts/association are removed; per-user guest
+  data stays and works after reinstall.
+  Pass: Keep behavior matches expectation.
+
+TC-42  Uninstall, delete data
+  Steps: In an isolated test user only, uninstall and choose Delete data.
+  Expected: Only that Windows user's DroidBox data is removed.
+  Pass: The instance directory is gone and unrelated user data remains.
+
+Automated regression suite
+--------------------------
+TC-50  Build and CTest
+  Steps: On a development/CI machine with the documented Qt and MSVC toolchain:
+
+    cmake -B build -S host-app -G "Visual Studio 17 2022" -A x64 -DCMAKE_PREFIX_PATH="C:/Qt/6.5.3/msvc2019_64"
+    cmake --build build --config Release
+    ctest --test-dir build -C Release --output-on-failure
+
+  Expected: Configure/build succeeds and every registered test passes.
+  Pass: CTest returns exit code 0; include its test count/output in results.
+
+Final decision record
+---------------------
+Record the following at the end of the test run:
+
+Release/tag tested:
+Installer SHA-256:
+Tester and test PC:
+Date/time:
+PASS count:
+FAIL count:
+BLOCKED count:
+NOT RUN count:
+Overall Version 1 result: PASS | FAIL | BLOCKED
+Production-distribution legal inventory complete: YES | NO
+Failures/blockers and links to evidence:
+
+Version 1 may be declared functionally accepted only when all applicable
+tests pass and the legal inventory is complete. Otherwise, give the result as
+not yet ready and list the exact remaining failures or blockers.
