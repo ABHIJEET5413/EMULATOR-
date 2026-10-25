@@ -70,7 +70,43 @@ QString InstanceManager::defaultInstancesRoot(const QString& root)
 {
     if (QFileInfo::exists(QDir(root).filePath("host-app/CMakeLists.txt")))
         return QDir(root).filePath("instances");
-    return QDir(QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)).filePath("instances");
+    const QString sabiRoot = QDir(QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation))
+                                 .filePath("instances");
+    const QString localAppData = qEnvironmentVariable("LOCALAPPDATA");
+    if (!localAppData.isEmpty()) {
+        QString migrationError;
+        const QString legacyRoot = QDir(localAppData).filePath("DroidBox/DroidBox/instances");
+        if (!migrateLegacyInstances(legacyRoot, sabiRoot, &migrationError))
+            qWarning().noquote() << "Could not migrate existing DroidBox instances:" << migrationError;
+    }
+    return sabiRoot;
+}
+
+bool InstanceManager::migrateLegacyInstances(const QString& legacyInstancesRoot,
+                                             const QString& sabiInstancesRoot,
+                                             QString* errorMessage)
+{
+    const QFileInfo legacy(QDir::cleanPath(legacyInstancesRoot));
+    const QFileInfo destination(QDir::cleanPath(sabiInstancesRoot));
+    if (!legacy.exists() || destination.exists()) return true;
+    if (legacy.isSymLink() || destination.isSymLink()) {
+        if (errorMessage) *errorMessage = "Migration refused a symbolic link or junction in an instance path.";
+        return false;
+    }
+    const QDir destinationParent = destination.dir();
+    if (!QDir().mkpath(destinationParent.absolutePath())) {
+        if (errorMessage) *errorMessage = "Could not create the Sabi data directory.";
+        return false;
+    }
+    if (!QDir().rename(legacy.absoluteFilePath(), destination.absoluteFilePath())) {
+        if (errorMessage) *errorMessage = "Could not move existing instances into the Sabi data directory. The original data was left unchanged.";
+        return false;
+    }
+    QFile marker(QDir(destination.absoluteFilePath()).filePath(".migrated-from-droidbox-v1"));
+    if (marker.open(QIODevice::WriteOnly | QIODevice::NewOnly | QIODevice::Text))
+        marker.write("Migrated by Sabi without altering qcow2 overlays or backing files.\n");
+    qInfo() << "Migrated DroidBox instance root to Sabi:" << destination.absoluteFilePath();
+    return true;
 }
 
 int InstanceManager::maximumCpuCores() { return std::clamp(QThread::idealThreadCount(), 1, 8); }

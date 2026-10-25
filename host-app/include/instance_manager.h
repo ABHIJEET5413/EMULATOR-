@@ -30,6 +30,10 @@ public:
     static QString findResourceRoot();
     /** Return the writable instance directory for a resource installation. */
     static QString defaultInstancesRoot(const QString& resourceRoot);
+    /** Move an unused v1 instance root into an empty v2 root without modifying disks. */
+    static bool migrateLegacyInstances(const QString& legacyInstancesRoot,
+                                       const QString& sabiInstancesRoot,
+                                       QString* errorMessage = nullptr);
     /** Return the host limits enforced by settings and launch. */
     static int maximumCpuCores();
     static int maximumRamMB();

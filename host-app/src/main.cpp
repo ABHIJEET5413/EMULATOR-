@@ -91,11 +91,11 @@ int main(int argc, char* argv[])
     std::unique_ptr<QCoreApplication> application;
     if (initializeOnly) application = std::make_unique<QCoreApplication>(argc, argv);
     else application = std::make_unique<QApplication>(argc, argv);
-    QCoreApplication::setApplicationName(QStringLiteral("DroidBox"));
-    QCoreApplication::setOrganizationName(QStringLiteral("DroidBox"));
+    QCoreApplication::setApplicationName(QStringLiteral("Sabi"));
+    QCoreApplication::setOrganizationName(QStringLiteral("Sabi"));
     qInstallMessageHandler(messageHandler);
 
-    qInfo() << "DroidBox desktop interface initialized.";
+    qInfo() << "Sabi desktop interface initialized.";
     QString apkToInstall;
     const QStringList arguments = application->arguments();
     for (qsizetype index = 1; index < arguments.size(); ++index) {
@@ -117,7 +117,7 @@ int main(int argc, char* argv[])
         const auto role = channel.startOrForward(manager.instancesRoot(), request);
         if (role == LaunchChannel::Role::Forwarded) return 0;
         if (role == LaunchChannel::Role::Error) {
-            QMessageBox::warning(nullptr, "DroidBox launch unavailable", channel.lastError()); return 1;
+            QMessageBox::warning(nullptr, "Sabi launch unavailable", channel.lastError()); return 1;
         }
     }
     if (!manager.initialize()) {

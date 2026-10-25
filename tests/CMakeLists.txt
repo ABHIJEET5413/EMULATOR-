@@ -3,7 +3,7 @@ add_executable(test_vm_control
 )
 
 add_executable(test_launch_channel test_launch_channel.cpp)
-target_link_libraries(test_launch_channel PRIVATE droidbox_core)
+target_link_libraries(test_launch_channel PRIVATE sabi_core)
 add_test(NAME launch_channel COMMAND test_launch_channel)
 set_tests_properties(launch_channel PROPERTIES TIMEOUT 45)
 
@@ -15,7 +15,7 @@ endif()
 
 target_link_libraries(test_vm_control
     PRIVATE
-        droidbox_core
+        sabi_core
         Qt6::Core
 )
 
@@ -30,7 +30,7 @@ add_executable(test_display_input
 
 target_link_libraries(test_display_input
     PRIVATE
-        droidbox_core
+        sabi_core
         Qt6::Core
 )
 
@@ -45,7 +45,7 @@ add_executable(test_keymap
 
 target_link_libraries(test_keymap
     PRIVATE
-        droidbox_core
+        sabi_core
         Qt6::Core
 )
 
@@ -67,7 +67,7 @@ add_executable(test_adb
 
 target_link_libraries(test_adb
     PRIVATE
-        droidbox_core
+        sabi_core
         Qt6::Core
 )
 
@@ -78,17 +78,17 @@ set_tests_properties(adb PROPERTIES
 
 # Explicit opt-in only: this harness installs an APK into a running Android guest.
 add_executable(test_adb_live test_adb_live.cpp)
-target_link_libraries(test_adb_live PRIVATE droidbox_core Qt6::Core)
+target_link_libraries(test_adb_live PRIVATE sabi_core Qt6::Core)
 
 add_executable(test_instance_manager test_instance_manager.cpp)
-target_link_libraries(test_instance_manager PRIVATE droidbox_core)
+target_link_libraries(test_instance_manager PRIVATE sabi_core)
 add_test(NAME instance_manager COMMAND test_instance_manager)
 set_tests_properties(instance_manager PROPERTIES
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
 )
 
 add_executable(test_phase5_ui test_phase5_ui.cpp)
-target_link_libraries(test_phase5_ui PRIVATE droidbox_core)
+target_link_libraries(test_phase5_ui PRIVATE sabi_core)
 add_test(NAME phase5_ui COMMAND test_phase5_ui)
 set_tests_properties(phase5_ui PROPERTIES
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
@@ -98,7 +98,7 @@ set_tests_properties(phase5_ui PROPERTIES
 
 if(WIN32)
     add_executable(test_native_keyboard test_native_keyboard.cpp)
-    target_link_libraries(test_native_keyboard PRIVATE droidbox_core)
+    target_link_libraries(test_native_keyboard PRIVATE sabi_core)
     add_test(NAME native_keyboard COMMAND test_native_keyboard)
     set_tests_properties(native_keyboard PROPERTIES
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."

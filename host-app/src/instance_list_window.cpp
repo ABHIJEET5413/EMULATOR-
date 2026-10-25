@@ -19,7 +19,7 @@
 InstanceListWindow::InstanceListWindow(InstanceManager* manager, QWidget* parent)
     : QWidget(parent), m_manager(manager)
 {
-    setWindowTitle("DroidBox - Instances"); resize(850, 390);
+    setWindowTitle("Sabi - Instances"); resize(850, 390);
     auto* layout = new QVBoxLayout(this);
     m_table = new QTableWidget(0, 6, this);
     m_table->setHorizontalHeaderLabels({"Instance", "Status", "CPU", "RAM (MB)", "Resolution", "Disk (MB)"});
@@ -136,7 +136,7 @@ void InstanceListWindow::runOperation(const std::function<bool(InstanceManager&)
     struct Result { bool success{false}; QString error; };
     const auto result = std::make_shared<Result>();
     const auto root = m_manager->resourceRoot(), instances = m_manager->instancesRoot();
-    setEnabled(false); setWindowTitle("DroidBox - Working on instance disk...");
+    setEnabled(false); setWindowTitle("Sabi - Working on instance disk...");
     m_job = QThread::create([root, instances, operation, result] {
         InstanceManager worker(root, instances);
         result->success = operation(worker); result->error = worker.lastError();
@@ -145,7 +145,7 @@ void InstanceListWindow::runOperation(const std::function<bool(InstanceManager&)
     connect(m_job, &QThread::finished, this, [this, result] {
         auto thread = m_job; m_job = nullptr;
         if (thread) thread->deleteLater();
-        setEnabled(true); setWindowTitle("DroidBox - Instances"); refreshList();
+        setEnabled(true); setWindowTitle("Sabi - Instances"); refreshList();
         if (!result->success) QMessageBox::warning(this, "Instance operation failed", result->error);
     });
     m_job->start();

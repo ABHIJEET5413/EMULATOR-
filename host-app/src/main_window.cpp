@@ -28,7 +28,7 @@
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
 {
-    setWindowTitle(QStringLiteral("DroidBox"));
+    setWindowTitle(QStringLiteral("Sabi"));
     setMinimumSize(480, 700);
     // Leave enough horizontal room for Android's first-run authorization
     // dialogs beside the vertical toolbar, even on a 1280px-wide desktop.
@@ -152,7 +152,7 @@ MainWindow::MainWindow(InstanceManager* manager, const QString& name, QWidget* p
     : MainWindow(parent)
 {
     m_instanceManager = manager; m_instanceName = name;
-    setWindowTitle("DroidBox - " + name);
+    setWindowTitle("Sabi - " + name);
 }
 
 MainWindow::~MainWindow()
@@ -355,7 +355,7 @@ void MainWindow::searchForQemuWindow()
 void MainWindow::handleVmError(const QString& message)
 {
     m_statusLabel->setText(QStringLiteral("Status: VM error"));
-    QMessageBox::critical(this, QStringLiteral("DroidBox VM error"), message);
+    QMessageBox::critical(this, QStringLiteral("Sabi VM error"), message);
 }
 
 void MainWindow::handleAdbError(const QString& message)
@@ -364,7 +364,7 @@ void MainWindow::handleAdbError(const QString& message)
     if (!m_adbBridge.isBootCompleted()) {
         m_statusLabel->setText(QStringLiteral("Status: Android unavailable"));
     }
-    QMessageBox::warning(this, QStringLiteral("DroidBox Android connection"), message);
+    QMessageBox::warning(this, QStringLiteral("Sabi Android connection"), message);
 }
 
 void MainWindow::setAdbActionsEnabled(const bool enabled)
@@ -440,7 +440,7 @@ void MainWindow::handleCloseWaitTimeout()
 
     const QMessageBox::StandardButton choice = QMessageBox::question(
         this,
-        QStringLiteral("DroidBox"),
+        QStringLiteral("Sabi"),
         QStringLiteral("The Android VM is still shutting down. Force close it?"),
         QMessageBox::Yes | QMessageBox::No,
         QMessageBox::No);

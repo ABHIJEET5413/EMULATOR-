@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(DroidBox VERSION 0.1.0 LANGUAGES CXX)
+project(Sabi VERSION 2.0.0 LANGUAGES CXX)
 
 include(CTest)
 
@@ -15,7 +15,7 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS Core Network Widgets Gui)
 # Phase 1 commands for Visual Studio's multi-configuration generator.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/$<CONFIG>")
 
-add_library(droidbox_core STATIC
+add_library(sabi_core STATIC
     include/launch_channel.h
     src/launch_channel.cpp
     include/instance_manager.h
@@ -42,12 +42,12 @@ add_library(droidbox_core STATIC
     src/qmp_client.cpp
 )
 
-target_include_directories(droidbox_core
+target_include_directories(sabi_core
     PUBLIC
         "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
 
-target_link_libraries(droidbox_core
+target_link_libraries(sabi_core
     PUBLIC
         Qt6::Core
         Qt6::Network
@@ -56,14 +56,14 @@ target_link_libraries(droidbox_core
 )
 
 if(WIN32)
-    target_link_libraries(droidbox_core PUBLIC user32)
+    target_link_libraries(sabi_core PUBLIC user32)
 endif()
 
-add_executable(DroidBox WIN32
+add_executable(Sabi WIN32
     src/main.cpp
 )
 
-target_link_libraries(DroidBox PRIVATE droidbox_core)
+target_link_libraries(Sabi PRIVATE sabi_core)
 
 # Regenerate the development default on configuration, replacing stale test copies.
 file(GENERATE
@@ -71,10 +71,10 @@ file(GENERATE
     INPUT "${CMAKE_CURRENT_SOURCE_DIR}/../vm/configs/default-instance.json"
 )
 
-add_custom_command(TARGET DroidBox POST_BUILD
+add_custom_command(TARGET Sabi POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_CURRENT_SOURCE_DIR}/resources/keymaps"
-        "$<TARGET_FILE_DIR:DroidBox>/resources/keymaps"
+        "$<TARGET_FILE_DIR:Sabi>/resources/keymaps"
     COMMENT "Copying bundled keymap profiles"
 )
 

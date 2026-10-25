@@ -29,6 +29,18 @@ int main(int argc, char** argv)
     const auto root = InstanceManager::findResourceRoot();
     QTemporaryDir temporary;
     if (!temporary.isValid()) return 1;
+    const QString legacyInstances = temporary.filePath("DroidBox/DroidBox/instances");
+    const QString sabiInstances = temporary.filePath("Sabi/Sabi/instances");
+    QDir().mkpath(legacyInstances + "/default");
+    QFile legacyMarker(legacyInstances + "/default/config.json");
+    legacyMarker.open(QIODevice::WriteOnly); legacyMarker.write("{}"); legacyMarker.close();
+    QString migrationError;
+    check(InstanceManager::migrateLegacyInstances(legacyInstances, sabiInstances, &migrationError),
+          "migrate legacy v1 instance root");
+    check(!QFileInfo::exists(legacyInstances) && QFileInfo::exists(sabiInstances + "/default/config.json"),
+          "legacy migration preserves instance files in the Sabi root");
+    check(InstanceManager::migrateLegacyInstances(legacyInstances, sabiInstances, &migrationError),
+          "repeat legacy migration is non-destructive");
     const QString resource = temporary.filePath("resources"), instances = temporary.filePath("instances");
     QDir().mkpath(resource + "/vm/configs"); QDir().mkpath(resource + "/vm/qemu"); QDir().mkpath(resource + "/vm/images");
     // Reuse the installed tool; do not copy its dependent DLLs into the test fixture.
