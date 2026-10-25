@@ -597,9 +597,11 @@ bool InputHandler::handleNativeMouseEvent(const QPoint screenPosition,
 
     const bool ownsButton = button != Qt::NoButton
         && m_pressedButtons.contains(static_cast<int>(button));
-    if (!isPointerOverEmbeddedDisplay(screenPosition)
-        && !ownsButton
-        && !isEmbeddedDisplayFocused()) {
+    // A focused embedded SDL child must not capture pointer messages meant for
+    // Sabi's toolbar, title bar, menus, or the Windows caption controls.
+    // Only forward while the pointer is inside the actual child, plus the
+    // matching release after a drag began inside it.
+    if (!isPointerOverEmbeddedDisplay(screenPosition) && !ownsButton) {
         return false;
     }
 

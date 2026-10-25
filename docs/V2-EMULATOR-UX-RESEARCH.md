@@ -71,6 +71,11 @@ The current QMP path uses absolute `usb-tablet` events and maps from the real
 Win32 SDL client rectangle. SDL must not also receive a second mouse stream;
 otherwise the two cursor/input paths can diverge.
 
+The native mouse hook forwards only events whose pointer is over the embedded
+SDL client (and the matching release of a drag that began there). Sabi toolbar,
+menu, title-bar, and Windows caption-control input must always remain host UI
+input even while the guest owns keyboard focus.
+
 ## Deferred features
 
 The following require a separate design and manual acceptance run before they
