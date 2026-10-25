@@ -633,10 +633,10 @@ QStringList QemuController::buildCommandLine() const
     arguments << QStringLiteral("-device") << QStringLiteral("virtio-vga-gl,xres=%1,yres=%2").arg(m_displayWidth).arg(m_displayHeight);
     if (m_cameraMode == "webcam")
         arguments << "-device" << QString("usb-host,vendorid=%1,productid=%2").arg(m_cameraVendor, m_cameraProduct);
-    // Input is sent through QMP's absolute usb-tablet path. Hiding SDL's
-    // guest cursor prevents a second cursor from drifting beside the Windows
-    // cursor when the embedded child is scaled by a high-DPI monitor.
-    arguments << QStringLiteral("-display") << QStringLiteral("sdl,gl=on,show-cursor=off,window-close=off");
+    // SDL owns direct native mouse input for the embedded guest. Keeping its
+    // cursor visible makes hit testing and pointer feedback reliable on
+    // Windows; QMP remains available for keyboard and keymap-generated input.
+    arguments << QStringLiteral("-display") << QStringLiteral("sdl,gl=on,show-cursor=on,window-close=off");
     arguments << QStringLiteral("-qmp")
               << QStringLiteral("tcp:localhost:%1,server,wait=off").arg(m_qmpPort);
     arguments << QStringLiteral("-serial") << QStringLiteral("mon:stdio");

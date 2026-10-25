@@ -125,11 +125,12 @@ The main Windows application the user interacts with.
   on SDL receiving keyboard messages after reparenting. Successfully forwarded
   keys are consumed to avoid duplicates. Key-up reaches every handler owning
   the key, including after switching guests; host dialogs retain normal typing.
-  The Qt event filter handles keys delivered to the Qt display widget, and mouse
-  events use QMP when delivered there. The native mouse hook tests the stable
-  `DisplayEmbed` screen rectangle rather than SDL's unstable internal OpenGL
-  child, so guest input works without capturing toolbar or caption controls.
-  Touch coordinates are sent as QMP absolute axes and button events.
+  The Qt event filter handles keys delivered to the Qt display widget. The
+  embedded SDL child receives physical Windows mouse events directly; Sabi does
+  not globally capture and replay them through QMP, because that prevented real
+  guests from receiving pointer input on the tested Windows host. QMP remains
+  the path for keyboard, keymaps, and controlled touch automation. Touch
+  coordinates are sent as QMP absolute axes and button events.
 
 #### 1.6 `KeymapEngine` (Phase 3)
 - **What**: Maps physical keyboard keys to guest touch actions.
