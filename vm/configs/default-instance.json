@@ -1,11 +1,12 @@
 {
   "name": "default",
-  "cpuCores": 1,
+  "cpuCores": 4,
   "ramMB": 4096,
   "display": {
+    "profile": "phone",
     "width": 1080,
-    "height": 1920,
-    "dpi": 240
+    "height": 2400,
+    "dpi": 420
   },
   "qemuPath": "vm/qemu/qemu-system-x86_64.exe",
   "baseImage": "vm/images/bliss-base.qcow2",

@@ -52,6 +52,12 @@ CPU/RAM and QEMU raster changes require a QEMU restart. Android `wm size` and
 `wm density` changes can be sent once ADB reports boot complete, but visual
 quality and input alignment must be checked after the guest has redrawn.
 
+New instances default to 4 CPU cores and 4096 MB RAM, subject to Sabi's host
+core and half-host-memory limits. This matches the common 4-core/4096 MB
+single-instance guidance documented by LDPlayer and MEmu, while users running
+multiple instances should lower allocations to keep the total below available
+host resources.
+
 ## Cursor and rendering acceptance gate
 
 Before claiming parity with mature emulators, test an actual guest at Windows

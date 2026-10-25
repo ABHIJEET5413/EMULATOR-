@@ -64,7 +64,8 @@ The main Windows application the user interacts with.
   launches `qemu-system-x86_64.exe` via `QProcess` with WHPX, and waits
   up to 30 seconds for the QMP handshake. It builds the Phase 1 command
   line with the configured CPU/RAM, qcow2 overlay, USB tablet, user-mode
-  NAT/ADB forward, OpenGL virtio VGA with an SDL display, QMP socket, and
+  NAT/ADB forward, OpenGL virtio VGA with an SDL display and hidden SDL guest
+  cursor, QMP socket, and
   serial console. This graphics device lets Bliss 14 pass the text boot
   splash on the tested Windows host. Graceful
   shutdown first requests `system_powerdown`; if the guest does not respond,

@@ -38,7 +38,8 @@ SettingsDialog::SettingsDialog(const QJsonObject& config, bool running, QWidget*
     m_displayProfile->addItem("PC", "pc");
     m_displayProfile->addItem("Fullscreen (host monitor)", "fullscreen");
     m_displayProfile->addItem("Custom", "custom");
-    const QString savedProfile = display.value("profile").toString("custom");
+    QString savedProfile = display.value("profile").toString();
+    if (savedProfile.isEmpty()) savedProfile = QStringLiteral("custom");
     m_displayProfile->setCurrentIndex(qMax(0, m_displayProfile->findData(savedProfile)));
     form->addRow("Display profile", m_displayProfile);
     m_resolution = new QComboBox(this);
@@ -72,6 +73,8 @@ SettingsDialog::SettingsDialog(const QJsonObject& config, bool running, QWidget*
     m_customDpi->setValue(display.value("dpi").toInt(420));
     form->addRow("Custom width", m_customWidth); form->addRow("Custom height", m_customHeight); form->addRow("Custom DPI", m_customDpi);
     connect(m_resolution, &QComboBox::currentIndexChanged, this, [this] {
+        if (m_displayProfile->currentData().toString() != "custom")
+            m_displayProfile->setCurrentIndex(m_displayProfile->findData("custom"));
         const auto parts = m_resolution->currentData().toString().split('x');
         if (parts.size() == 2) {
             m_customWidth->setValue(parts.at(0).toInt());
@@ -79,14 +82,26 @@ SettingsDialog::SettingsDialog(const QJsonObject& config, bool running, QWidget*
         }
     });
     connect(m_dpi, &QComboBox::currentIndexChanged, this, [this] {
+        if (m_displayProfile->currentData().toString() != "custom")
+            m_displayProfile->setCurrentIndex(m_displayProfile->findData("custom"));
         m_customDpi->setValue(m_dpi->currentText().toInt());
     });
     const auto updateProfile = [this] {
         const QString profile = m_displayProfile->currentData().toString();
         const bool custom = profile == "custom";
+        if (custom) {
+            const auto parts = m_resolution->currentData().toString().split('x');
+            if (parts.size() == 2) {
+                m_customWidth->setValue(parts.at(0).toInt());
+                m_customHeight->setValue(parts.at(1).toInt());
+            }
+            m_customDpi->setValue(m_dpi->currentText().toInt());
+        }
         for (QSpinBox* field : {m_customWidth, m_customHeight, m_customDpi}) field->setEnabled(custom);
-        m_resolution->setEnabled(custom);
-        m_dpi->setEnabled(custom);
+        // Selecting a listed resolution or DPI intentionally switches to Custom.
+        // Keep these selectors available for that one-step workflow.
+        m_resolution->setEnabled(true);
+        m_dpi->setEnabled(true);
     };
     connect(m_displayProfile, &QComboBox::currentIndexChanged, this, updateProfile); updateProfile();
     m_qmpPort = new QSpinBox(this); m_adbPort = new QSpinBox(this);
