@@ -20,6 +20,7 @@ private:
     QJsonObject m_originalConfig;
     QSpinBox *m_cpuCores, *m_qmpPort, *m_adbPort;
     QSlider* m_ramSlider;
-    QComboBox *m_resolution, *m_dpi, *m_cameraMode;
+    QComboBox *m_displayProfile, *m_resolution, *m_dpi, *m_cameraMode;
+    QSpinBox *m_customWidth, *m_customHeight, *m_customDpi;
     QLineEdit *m_vendorId, *m_productId;
 };

@@ -401,10 +401,12 @@ Physical key → InputHandler → KeymapEngine
 - `InstanceListWindow` (`instance_list_window.h/.cpp`): launcher with create/start/stop/settings/clone/delete/reset,
   running-state refresh, confirmation before erasure, and disk work on a dedicated QThread.
   Each managed `MainWindow` has its own controller, ADB bridge, display, and input handler.
-- `SettingsDialog` (`settings_dialog.h/.cpp`): CPU/RAM sliders/spinboxes, named Mobile, Tablet, and
-  Desktop display presets, DPI, QMP/ADB ports, and optional USB VID/PID. The selected resolution/DPI
-  are stored in the selected instance's `config.json`, so they are restored on its next launch. Settings
-  apply after restart; running ports cannot change.
+- `SettingsDialog` (`settings_dialog.h/.cpp`): CPU/RAM sliders/spinboxes, per-instance Phone, Tablet,
+  PC, Fullscreen, and Custom display profiles, DPI, QMP/ADB ports, and optional USB VID/PID. Profile
+  dimensions/DPI are stored in the selected instance's `config.json`, restored on the next launch, and
+  applied through ADB when Android is ready. CPU/RAM and QEMU raster changes still require restart.
+- `MainWindow` exposes the main display profiles in the toolbar and has a Rotate action. It saves profile
+  changes per instance, applies `wm size`/`wm density` live after boot, and saves rotation as Custom.
 - `main.cpp`: imports the existing default disk without recreating it, launches the sole instance directly,
   otherwise shows the launcher. APK arguments target default; `--instance NAME` selects one;
   `--instances` explicitly opens the launcher. Installed writable data uses AppLocalDataLocation.

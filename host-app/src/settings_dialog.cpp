@@ -1,9 +1,11 @@
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QFormLayout>
+#include <QGuiApplication>
 #include <QLabel>
 #include <QLineEdit>
 #include <QSlider>
+#include <QScreen>
 #include <QSpinBox>
 #include <QStandardItemModel>
 #include <QVBoxLayout>
@@ -30,6 +32,15 @@ SettingsDialog::SettingsDialog(const QJsonObject& config, bool running, QWidget*
     connect(m_ramSlider, &QSlider::valueChanged, this, showRam);
     showRam(); form->addRow(ramLabel, m_ramSlider);
     const auto display = config.value("display").toObject();
+    m_displayProfile = new QComboBox(this);
+    m_displayProfile->addItem("Phone", "phone");
+    m_displayProfile->addItem("Tablet", "tablet");
+    m_displayProfile->addItem("PC", "pc");
+    m_displayProfile->addItem("Fullscreen (host monitor)", "fullscreen");
+    m_displayProfile->addItem("Custom", "custom");
+    const QString savedProfile = display.value("profile").toString("custom");
+    m_displayProfile->setCurrentIndex(qMax(0, m_displayProfile->findData(savedProfile)));
+    form->addRow("Display profile", m_displayProfile);
     m_resolution = new QComboBox(this);
     const auto addResolution = [this](const QString& label, const QString& size) {
         m_resolution->addItem(label, size);
@@ -53,6 +64,31 @@ SettingsDialog::SettingsDialog(const QJsonObject& config, bool running, QWidget*
     m_dpi = new QComboBox(this); m_dpi->addItems({"160", "240", "320", "480"});
     m_dpi->setCurrentText(QString::number(display.value("dpi").toInt()));
     form->addRow("DPI", m_dpi);
+    m_customWidth = new QSpinBox(this); m_customHeight = new QSpinBox(this); m_customDpi = new QSpinBox(this);
+    for (QSpinBox* field : {m_customWidth, m_customHeight}) field->setRange(320, 4096);
+    m_customDpi->setRange(80, 640);
+    m_customWidth->setValue(display.value("width").toInt(1080));
+    m_customHeight->setValue(display.value("height").toInt(1920));
+    m_customDpi->setValue(display.value("dpi").toInt(420));
+    form->addRow("Custom width", m_customWidth); form->addRow("Custom height", m_customHeight); form->addRow("Custom DPI", m_customDpi);
+    connect(m_resolution, &QComboBox::currentIndexChanged, this, [this] {
+        const auto parts = m_resolution->currentData().toString().split('x');
+        if (parts.size() == 2) {
+            m_customWidth->setValue(parts.at(0).toInt());
+            m_customHeight->setValue(parts.at(1).toInt());
+        }
+    });
+    connect(m_dpi, &QComboBox::currentIndexChanged, this, [this] {
+        m_customDpi->setValue(m_dpi->currentText().toInt());
+    });
+    const auto updateProfile = [this] {
+        const QString profile = m_displayProfile->currentData().toString();
+        const bool custom = profile == "custom";
+        for (QSpinBox* field : {m_customWidth, m_customHeight, m_customDpi}) field->setEnabled(custom);
+        m_resolution->setEnabled(custom);
+        m_dpi->setEnabled(custom);
+    };
+    connect(m_displayProfile, &QComboBox::currentIndexChanged, this, updateProfile); updateProfile();
     m_qmpPort = new QSpinBox(this); m_adbPort = new QSpinBox(this);
     m_qmpPort->setRange(1024, 65535); m_adbPort->setRange(1024, 65535);
     m_qmpPort->setValue(config.value("qmpPort").toInt()); m_adbPort->setValue(config.value("adbHostPort").toInt());
@@ -88,8 +124,17 @@ QJsonObject SettingsDialog::getConfig() const
 {
     auto result = m_originalConfig;
     result["cpuCores"] = m_cpuCores->value(); result["ramMB"] = m_ramSlider->value() * 512;
-    const auto parts = m_resolution->currentData().toString().split('x');
-    result["display"] = QJsonObject{{"width", parts.value(0).toInt()}, {"height", parts.value(1).toInt()}, {"dpi", m_dpi->currentText().toInt()}};
+    const QString profile = m_displayProfile->currentData().toString();
+    int width = 1080, height = 2400, dpi = 420;
+    if (profile == "tablet") { width = 1600; height = 2560; dpi = 280; }
+    else if (profile == "pc") { width = 1920; height = 1080; dpi = 160; }
+    else if (profile == "fullscreen") {
+        const QSize size = QGuiApplication::primaryScreen() ? QGuiApplication::primaryScreen()->size() : QSize(1920, 1080);
+        width = size.width(); height = size.height(); dpi = 160;
+    } else if (profile == "custom") {
+        width = m_customWidth->value(); height = m_customHeight->value(); dpi = m_customDpi->value();
+    }
+    result["display"] = QJsonObject{{"profile", profile}, {"width", width}, {"height", height}, {"dpi", dpi}};
     result["qmpPort"] = m_qmpPort->value(); result["adbHostPort"] = m_adbPort->value();
     auto network = result.value("network").toObject(); network["adbHostPort"] = m_adbPort->value(); result["network"] = network;
     result["camera"] = QJsonObject{{"mode", m_cameraMode->currentData().toString()},

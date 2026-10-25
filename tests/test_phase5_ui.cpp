@@ -113,16 +113,18 @@ int main(int argc, char** argv)
     auto* cpu = qobject_cast<QSpinBox*>(field(settings, "CPU cores"));
     auto* ram = settings.findChild<QSlider*>();
     auto* resolution = qobject_cast<QComboBox*>(field(settings, "Resolution"));
+    auto* profile = qobject_cast<QComboBox*>(field(settings, "Display profile"));
     auto* dpi = qobject_cast<QComboBox*>(field(settings, "DPI"));
     auto* camera = qobject_cast<QComboBox*>(field(settings, "Camera"));
     auto* qmp = qobject_cast<QSpinBox*>(field(settings, "QMP port"));
     auto* adb = qobject_cast<QSpinBox*>(field(settings, "ADB port"));
-    check(cpu && ram && resolution && dpi && camera && qmp && adb, "settings expose all required controls");
-    if (!cpu || !ram || !resolution || !dpi || !camera || !qmp || !adb) return 1;
+    check(cpu && ram && profile && resolution && dpi && camera && qmp && adb, "settings expose all required controls");
+    if (!cpu || !ram || !profile || !resolution || !dpi || !camera || !qmp || !adb) return 1;
     check(cpu->value() == 1 && ram->value() * 512 == 1024 && qmp->value() == config.value("qmpPort").toInt()
           && adb->value() == config.value("adbHostPort").toInt(), "settings load saved performance and ports");
     check(cpu->minimum() == 1 && cpu->maximum() == InstanceManager::maximumCpuCores(), "CPU widget enforces host limit");
     check(ram->minimum() * 512 == 1024 && ram->maximum() * 512 == InstanceManager::maximumRamMB(), "RAM widget enforces host limit and step");
+    profile->setCurrentIndex(profile->findData("custom"));
     for (int index = 0; index < resolution->count(); ++index) {
         resolution->setCurrentIndex(index);
         const auto parts = resolution->currentData().toString().split('x');
@@ -133,6 +135,15 @@ int main(int argc, char** argv)
           && resolution->findText("Tablet — QHD (2560 × 1600)") >= 0
           && resolution->findText("Desktop — Full HD (1920 × 1080)") >= 0,
           "settings identify mobile, tablet, and desktop display presets");
+    const QList<QPair<QString, QSize>> profiles{{"phone", {1080, 2400}}, {"tablet", {1600, 2560}}, {"pc", {1920, 1080}}};
+    for (const auto& preset : profiles) {
+        profile->setCurrentIndex(profile->findData(preset.first));
+        const auto savedDisplay = settings.getConfig().value("display").toObject();
+        check(savedDisplay.value("profile").toString() == preset.first
+                  && QSize(savedDisplay.value("width").toInt(), savedDisplay.value("height").toInt()) == preset.second,
+              "display profile persists " + preset.first);
+    }
+    profile->setCurrentIndex(profile->findData("custom"));
     const QRect desktopRect = DisplayEmbed::guestContentRect(QSize(1600, 1000), QSize(1920, 1080));
     check(desktopRect == QRect(0, 50, 1600, 900), "display embedding centers a 16:9 guest without stretching");
     const QRect mobileRect = DisplayEmbed::guestContentRect(QSize(1000, 1600), QSize(1080, 1920));

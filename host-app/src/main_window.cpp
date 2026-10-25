@@ -1,5 +1,6 @@
 #include <QAction>
 #include <QCloseEvent>
+#include <QComboBox>
 #include <QCoreApplication>
 #include <QDir>
 #include <QDragEnterEvent>
@@ -91,13 +92,7 @@ MainWindow::MainWindow(QWidget* parent)
         }
     });
     connect(&m_adbBridge, &AdbBridge::bootCompleted, this, [this]() {
-        const auto display = m_launchConfig.value("display").toObject();
-        if (!display.isEmpty()) {
-            const int width = display.value("width").toInt(), height = display.value("height").toInt();
-            m_inputHandler.setGuestResolution(QSize(width, height));
-            m_adbBridge.shellCommand(QString("wm size %1x%2 && wm density %3")
-                .arg(width).arg(height).arg(display.value("dpi").toInt()));
-        }
+        applyLiveDisplaySettings();
         m_statusLabel->setText(QStringLiteral("Status: Ready"));
         setAdbActionsEnabled(true);
         installPendingApk();
@@ -198,7 +193,26 @@ void MainWindow::createToolbar()
     addKeyAction(QStringLiteral("Volume -"), 25);
     addKeyAction(QStringLiteral("Power"), 26);
     toolbar->addSeparator();
-    addStub(QStringLiteral("Rotate"));
+    QAction* rotateAction = toolbar->addAction(QStringLiteral("Rotate"));
+    connect(rotateAction, &QAction::triggered, this, [this] {
+        if (!m_instanceManager || m_instanceName.isEmpty()) return;
+        auto config = m_instanceManager->getConfig(m_instanceName);
+        auto display = config.value("display").toObject();
+        const int width = display.value("width").toInt();
+        const int height = display.value("height").toInt();
+        if (width < 1 || height < 1) return;
+        display["width"] = height;
+        display["height"] = width;
+        display["profile"] = QStringLiteral("custom");
+        config["display"] = display;
+        if (!m_instanceManager->setConfig(m_instanceName, config)) {
+            QMessageBox::warning(this, QStringLiteral("Rotation not saved"), m_instanceManager->lastError());
+            return;
+        }
+        m_launchConfig = config;
+        if (m_displayProfile) m_displayProfile->setCurrentIndex(-1);
+        applyLiveDisplaySettings();
+    });
     QAction* screenshotAction = toolbar->addAction(QStringLiteral("Screenshot"));
     m_adbActions.append(screenshotAction);
     connect(screenshotAction, &QAction::triggered, this, &MainWindow::saveScreenshot);
@@ -219,13 +233,31 @@ void MainWindow::createToolbar()
             });
 
     toolbar->addSeparator();
+    m_displayProfile = new QComboBox(toolbar);
+    m_displayProfile->setToolTip(QStringLiteral("Display profile; applies immediately to Android and persists for this instance."));
+    m_displayProfile->addItem(QStringLiteral("Phone"), QStringLiteral("phone"));
+    m_displayProfile->addItem(QStringLiteral("Tablet"), QStringLiteral("tablet"));
+    m_displayProfile->addItem(QStringLiteral("PC"), QStringLiteral("pc"));
+    m_displayProfile->addItem(QStringLiteral("Fullscreen"), QStringLiteral("fullscreen"));
+    toolbar->addWidget(m_displayProfile);
+    connect(m_displayProfile, &QComboBox::currentIndexChanged, this, [this] {
+        if (m_displayProfile) applyDisplayProfile(m_displayProfile->currentData().toString());
+    });
+
+    toolbar->addSeparator();
     addStub(QStringLiteral("Shared Folder"));
     QAction* settings = toolbar->addAction(QStringLiteral("Settings"));
     connect(settings, &QAction::triggered, this, [this] {
         if (!m_instanceManager) return;
         SettingsDialog dialog(m_instanceManager->getConfig(m_instanceName), m_instanceManager->isRunning(m_instanceName), this);
         while (dialog.exec() == QDialog::Accepted) {
-            if (m_instanceManager->setConfig(m_instanceName, dialog.getConfig())) break;
+            if (m_instanceManager->setConfig(m_instanceName, dialog.getConfig())) {
+                m_launchConfig = dialog.getConfig();
+                const auto display = m_launchConfig.value("display").toObject();
+                if (m_displayProfile) m_displayProfile->setCurrentIndex(m_displayProfile->findData(display.value("profile").toString()));
+                applyLiveDisplaySettings();
+                break;
+            }
             QMessageBox::warning(this, "Settings not saved", m_instanceManager->lastError());
         }
     });
@@ -262,6 +294,11 @@ void MainWindow::startVm()
         // A preserved config can name the previous installation directory.
         // Use the manager's current runtime path when loading the disk config.
         m_qemuController.setQemuPath(m_launchConfig.value("qemuPath").toString());
+        if (m_displayProfile) {
+            const QString profile = m_launchConfig.value("display").toObject().value("profile").toString("custom");
+            const int index = m_displayProfile->findData(profile);
+            if (index >= 0) m_displayProfile->setCurrentIndex(index);
+        }
     }
     if (configPath.isEmpty()) {
         m_statusLabel->setText(QStringLiteral("Status: Configuration missing"));
@@ -286,6 +323,44 @@ void MainWindow::startVm()
     if (!m_qemuController.start(configPath)) {
         if (m_instanceManager) m_instanceManager->releaseInstance(m_instanceName);
         m_statusLabel->setText(QStringLiteral("Status: VM failed to start"));
+    }
+}
+
+void MainWindow::applyDisplayProfile(const QString& profile)
+{
+    if (!m_instanceManager || m_instanceName.isEmpty() || profile.isEmpty()) return;
+    auto config = m_instanceManager->getConfig(m_instanceName);
+    auto display = config.value("display").toObject();
+    if (display.value("profile").toString() == profile) return;
+    int width = 1080, height = 2400, dpi = 420;
+    if (profile == "tablet") { width = 1600; height = 2560; dpi = 280; }
+    else if (profile == "pc") { width = 1920; height = 1080; dpi = 160; }
+    else if (profile == "fullscreen") {
+        QScreen* target = screen() ? screen() : QGuiApplication::primaryScreen();
+        const QSize size = target ? target->size() : QSize(1920, 1080);
+        width = size.width(); height = size.height(); dpi = 160;
+    }
+    display["profile"] = profile; display["width"] = width; display["height"] = height; display["dpi"] = dpi;
+    config["display"] = display;
+    if (!m_instanceManager->setConfig(m_instanceName, config)) {
+        qWarning().noquote() << m_instanceManager->lastError();
+        return;
+    }
+    m_launchConfig = config;
+    applyLiveDisplaySettings();
+}
+
+void MainWindow::applyLiveDisplaySettings()
+{
+    const auto display = m_launchConfig.value("display").toObject();
+    const QSize resolution(display.value("width").toInt(), display.value("height").toInt());
+    if (resolution.width() < 1 || resolution.height() < 1) return;
+    m_displayEmbed->setGuestResolution(resolution);
+    m_inputHandler.setGuestResolution(resolution);
+    resizeForGuestDisplay(resolution);
+    if (m_adbBridge.isBootCompleted()) {
+        m_adbBridge.shellCommand(QString("wm size %1x%2 && wm density %3")
+            .arg(resolution.width()).arg(resolution.height()).arg(display.value("dpi").toInt()));
     }
 }
 

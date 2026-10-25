@@ -10,6 +10,7 @@
 #include "qemu_controller.h"
 
 class QAction;
+class QComboBox;
 class QCloseEvent;
 class QDragEnterEvent;
 class QDropEvent;
@@ -58,6 +59,10 @@ private:
     void startVm();
     /** Size the host window to the selected guest aspect ratio and desktop space. */
     void resizeForGuestDisplay(QSize resolution);
+    /** Save and apply a profile change for the active instance. */
+    void applyDisplayProfile(const QString& profile);
+    /** Push display dimensions to Android when ADB is ready. */
+    void applyLiveDisplaySettings();
     void beginDisplayWindowSearch();
     void searchForQemuWindow();
     void handleVmError(const QString& message);
@@ -75,6 +80,7 @@ private:
     DisplayEmbed* m_displayEmbed{nullptr};
     QLabel* m_statusLabel{nullptr};
     QAction* m_fullscreenAction{nullptr};
+    QComboBox* m_displayProfile{nullptr};
     QList<QAction*> m_adbActions;
     QString m_pendingApkPath;
     QTimer m_windowSearchTimer;

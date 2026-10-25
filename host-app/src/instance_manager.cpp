@@ -265,8 +265,8 @@ bool InstanceManager::validate(const QString& name, const QJsonObject& config, b
     const auto display = config.value("display").toObject();
     const int width = display.value("width").toInt(), height = display.value("height").toInt();
     const int dpi = display.value("dpi").toInt();
-    if (width < 320 || height < 320 || width > 4096 || height > 4096 || !QList<int>{160,240,320,480}.contains(dpi))
-        return fail("Display size must be 320-4096 pixels per side, with DPI 160, 240, 320, or 480.");
+    if (width < 320 || height < 320 || width > 4096 || height > 4096 || dpi < 80 || dpi > 640)
+        return fail("Display size must be 320-4096 pixels per side, with DPI 80-640.");
     const int qmp = config.value("qmpPort").toInt(), adb = config.value("adbHostPort").toInt();
     const auto network = config.value("network").toObject();
     if (network.contains("adbHostPort") && network.value("adbHostPort").toInt() != adb)
