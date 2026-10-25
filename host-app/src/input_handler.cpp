@@ -338,6 +338,16 @@ bool InputHandler::handleMouseEvent(QMouseEvent* event)
         return false;
     }
 
+#ifdef Q_OS_WIN
+    // Depending on the Windows compositor/DPI path, pointer messages over a
+    // reparented SDL child can be delivered either to SDL or to the native Qt
+    // parent. SDL handles the former itself; replay the latter as the original
+    // Win32 mouse message instead of converting physical input into QMP.
+    if (forwardNativeMouseEvent(event)) {
+        return true;
+    }
+#endif
+
     const QPoint position = event->position().toPoint();
     QJsonArray events{
         absoluteAxisEvent(QStringLiteral("x"), scaleToQmpAxis(position.x(), m_displayWidget->width())),
@@ -360,6 +370,63 @@ bool InputHandler::handleMouseEvent(QMouseEvent* event)
     }
 
     return sendInputEvents(events);
+}
+
+bool InputHandler::forwardNativeMouseEvent(QMouseEvent* event)
+{
+#ifdef Q_OS_WIN
+    auto* display = qobject_cast<DisplayEmbed*>(m_displayWidget.data());
+    if (!event || !display || !display->hasEmbeddedWindow()) {
+        return false;
+    }
+    const HWND guestWindow = reinterpret_cast<HWND>(display->embeddedWindow());
+    if (!IsWindow(guestWindow)) {
+        return false;
+    }
+
+    UINT message = WM_MOUSEMOVE;
+    switch (event->type()) {
+    case QEvent::MouseMove: break;
+    case QEvent::MouseButtonPress:
+        if (event->button() == Qt::LeftButton) message = WM_LBUTTONDOWN;
+        else if (event->button() == Qt::RightButton) message = WM_RBUTTONDOWN;
+        else if (event->button() == Qt::MiddleButton) message = WM_MBUTTONDOWN;
+        else return false;
+        break;
+    case QEvent::MouseButtonRelease:
+        if (event->button() == Qt::LeftButton) message = WM_LBUTTONUP;
+        else if (event->button() == Qt::RightButton) message = WM_RBUTTONUP;
+        else if (event->button() == Qt::MiddleButton) message = WM_MBUTTONUP;
+        else return false;
+        break;
+    default: return false;
+    }
+
+    const QPoint global = event->globalPosition().toPoint();
+    POINT clientPoint{global.x(), global.y()};
+    if (!ScreenToClient(guestWindow, &clientPoint)) {
+        return false;
+    }
+    WPARAM buttons = 0;
+    if (event->buttons().testFlag(Qt::LeftButton)) buttons |= MK_LBUTTON;
+    if (event->buttons().testFlag(Qt::RightButton)) buttons |= MK_RBUTTON;
+    if (event->buttons().testFlag(Qt::MiddleButton)) buttons |= MK_MBUTTON;
+    if (message == WM_LBUTTONDOWN || message == WM_RBUTTONDOWN || message == WM_MBUTTONDOWN) {
+        display->focusEmbeddedWindow();
+        SetCapture(guestWindow);
+    }
+    const LPARAM position = MAKELPARAM(static_cast<WORD>(clientPoint.x), static_cast<WORD>(clientPoint.y));
+    if (!PostMessageW(guestWindow, message, buttons, position)) {
+        return false;
+    }
+    if (message == WM_LBUTTONUP || message == WM_RBUTTONUP || message == WM_MBUTTONUP) {
+        ReleaseCapture();
+    }
+    return true;
+#else
+    Q_UNUSED(event)
+    return false;
+#endif
 }
 
 bool InputHandler::handleKeyEvent(QKeyEvent* event, const bool down)

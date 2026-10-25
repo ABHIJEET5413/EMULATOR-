@@ -71,10 +71,12 @@ The current QMP path uses absolute `usb-tablet` events and maps from the real
 Win32 SDL client rectangle. SDL must not also receive a second mouse stream;
 otherwise the two cursor/input paths can diverge.
 
-The embedded SDL child receives direct native mouse messages. Sabi does not
-globally capture and replay physical mouse input through QMP: on the tested
-Windows host that path could acknowledge QMP commands while preventing the
-real SDL guest from receiving clicks. Toolbar, menu, title-bar, and Windows
+The embedded SDL child receives direct native mouse messages. If Windows sends
+an event to the Qt display parent instead, Sabi forwards that original Win32
+message and its physical client coordinates directly to the SDL child. Sabi
+does not globally capture and replay physical mouse input through QMP: on the
+tested Windows host that path could acknowledge QMP commands while preventing
+the real SDL guest from receiving clicks. Toolbar, menu, title-bar, and Windows
 caption-control input therefore remain ordinary host UI input, while QMP stays
 available for keyboard, keymaps, and controlled touch automation.
 

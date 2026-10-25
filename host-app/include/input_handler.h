@@ -64,6 +64,8 @@ protected:
 
 private:
     bool handleMouseEvent(QMouseEvent* event);
+    /** Forward Qt-delivered pointer input to the embedded SDL child on Windows. */
+    bool forwardNativeMouseEvent(QMouseEvent* event);
     bool handleKeyEvent(QKeyEvent* event, bool down);
     bool sendKeyToGuest(Qt::Key key, bool down);
     bool handleNativeMouseEvent(QPoint screenPosition, Qt::MouseButton button, bool down, bool move);
