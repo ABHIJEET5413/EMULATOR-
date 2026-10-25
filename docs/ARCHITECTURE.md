@@ -126,8 +126,10 @@ The main Windows application the user interacts with.
   keys are consumed to avoid duplicates. Key-up reaches every handler owning
   the key, including after switching guests; host dialogs retain normal typing.
   The Qt event filter handles keys delivered to the Qt display widget, and mouse
-  events use QMP when delivered there. Touch coordinates are sent as QMP
-  absolute axes and button events.
+  events use QMP when delivered there. The native mouse hook tests the stable
+  `DisplayEmbed` screen rectangle rather than SDL's unstable internal OpenGL
+  child, so guest input works without capturing toolbar or caption controls.
+  Touch coordinates are sent as QMP absolute axes and button events.
 
 #### 1.6 `KeymapEngine` (Phase 3)
 - **What**: Maps physical keyboard keys to guest touch actions.
@@ -420,8 +422,8 @@ Physical key → InputHandler → KeymapEngine
   settings through that instance's ADB serial and updates keymap coordinate scaling.
 - `DisplayEmbed` keeps the SDL child in a centered, aspect-correct rectangle instead of stretching it across
   letterbox space. The same physical-pixel rectangle is given to Win32. `InputHandler` intercepts mouse input
-  over that embedded child and sends it through QMP's absolute USB-tablet path using the actual Win32 client
-  rectangle, avoiding SDL reparenting/scaling cursor displacement.
+  over the native display viewport and sends it through QMP's absolute USB-tablet path using the actual Win32
+  client rectangle, avoiding SDL reparenting/scaling cursor displacement while leaving Sabi controls interactive.
 - `QemuController` applies display width/height as virtio-vga-gl xres/yres and validates optional usb-host IDs.
   The instance running lock remains held until QEMU has exited.
 - `image-build/prepare-instance-base.sh`: creates a new provisioned base via a disposable overlay;

@@ -563,13 +563,18 @@ bool InputHandler::isPointerOverEmbeddedDisplay(const QPoint screenPosition) con
     if (!display || !display->hasEmbeddedWindow()) {
         return false;
     }
-    const HWND qemuWindow = reinterpret_cast<HWND>(display->embeddedWindow());
-    if (!IsWindow(qemuWindow)) {
+    // SDL/OpenGL can expose an internal child below the reparented QEMU HWND,
+    // making WindowFromPoint() unreliable. The native DisplayEmbed HWND is
+    // stable and covers only the Android viewport, never Sabi's controls.
+    const HWND displayWindow = reinterpret_cast<HWND>(display->winId());
+    if (!IsWindow(displayWindow)) {
         return false;
     }
-    const POINT nativePoint{screenPosition.x(), screenPosition.y()};
-    const HWND pointedWindow = WindowFromPoint(nativePoint);
-    return pointedWindow == qemuWindow || IsChild(qemuWindow, pointedWindow);
+    RECT displayRect{};
+    if (!GetWindowRect(displayWindow, &displayRect)) {
+        return false;
+    }
+    return PtInRect(&displayRect, POINT{screenPosition.x(), screenPosition.y()});
 #else
     Q_UNUSED(screenPosition)
     return false;
@@ -591,10 +596,6 @@ bool InputHandler::handleNativeMouseEvent(const QPoint screenPosition,
         return false;
     }
 
-    if (down) {
-        display->focusEmbeddedWindow();
-    }
-
     const bool ownsButton = button != Qt::NoButton
         && m_pressedButtons.contains(static_cast<int>(button));
     // A focused embedded SDL child must not capture pointer messages meant for
@@ -603,6 +604,10 @@ bool InputHandler::handleNativeMouseEvent(const QPoint screenPosition,
     // matching release after a drag began inside it.
     if (!isPointerOverEmbeddedDisplay(screenPosition) && !ownsButton) {
         return false;
+    }
+
+    if (down) {
+        display->focusEmbeddedWindow();
     }
 
     POINT position{screenPosition.x(), screenPosition.y()};

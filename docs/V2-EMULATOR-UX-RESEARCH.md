@@ -72,9 +72,19 @@ Win32 SDL client rectangle. SDL must not also receive a second mouse stream;
 otherwise the two cursor/input paths can diverge.
 
 The native mouse hook forwards only events whose pointer is over the embedded
-SDL client (and the matching release of a drag that began there). Sabi toolbar,
-menu, title-bar, and Windows caption-control input must always remain host UI
-input even while the guest owns keyboard focus.
+display viewport (and the matching release of a drag that began there). It
+uses the stable native DisplayEmbed rectangle rather than SDL's internal child,
+which can be ambiguous after SetParent. Sabi toolbar, menu, title-bar, and
+Windows caption-control input must always remain host UI input even while the
+guest owns keyboard focus.
+
+## Toolbar visual system
+
+The vertical toolbar now draws a purpose-built 24px vector icon family with
+one stroke weight, rounded joins, consistent padding, visible tooltips, and
+clear hover/pressed states. The visual direction was evaluated against the
+current Material Symbols guidance. Sabi draws its own vectors at runtime, so
+it ships no copied third-party icon asset or icon-font runtime.
 
 ## Deferred features
 

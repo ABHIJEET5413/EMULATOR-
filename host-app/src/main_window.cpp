@@ -11,9 +11,12 @@
 #include <QLabel>
 #include <QMimeData>
 #include <QMessageBox>
+#include <QPainter>
+#include <QPainterPath>
+#include <QPen>
+#include <QPixmap>
 #include <QStandardPaths>
 #include <QStatusBar>
-#include <QStyle>
 #include <QScreen>
 #include <QToolBar>
 #include <QUrl>
@@ -27,6 +30,77 @@
 
 #include <utility>
 
+namespace {
+
+enum class ToolbarIcon {
+    Home, Back, Recents, VolumeUp, VolumeDown, Power, Rotate, Screenshot,
+    Install, Fullscreen, Settings, Instances
+};
+
+QIcon makeToolbarIcon(const ToolbarIcon icon)
+{
+    QPixmap canvas(48, 48);
+    canvas.fill(Qt::transparent);
+    QPainter painter(&canvas);
+    painter.setRenderHint(QPainter::Antialiasing);
+    QPen pen(QColor(QStringLiteral("#dbeafe")), 2.7, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin);
+    painter.setPen(pen);
+    painter.setBrush(Qt::NoBrush);
+    const auto line = [&painter](const int x1, const int y1, const int x2, const int y2) {
+        painter.drawLine(x1, y1, x2, y2);
+    };
+    const auto rounded = [&painter](const QRectF& rectangle, const qreal radius = 3.0) {
+        painter.drawRoundedRect(rectangle, radius, radius);
+    };
+
+    switch (icon) {
+    case ToolbarIcon::Home:
+        line(10, 23, 24, 11); line(24, 11, 38, 23); rounded(QRectF(14, 22, 20, 15));
+        line(21, 37, 21, 29); line(27, 37, 27, 29); break;
+    case ToolbarIcon::Back:
+        line(28, 11, 16, 24); line(16, 24, 28, 37); line(17, 24, 39, 24); break;
+    case ToolbarIcon::Recents:
+        rounded(QRectF(13, 11, 22, 25)); rounded(QRectF(9, 16, 22, 21));
+        line(16, 22, 27, 22); line(16, 28, 25, 28); break;
+    case ToolbarIcon::VolumeUp:
+    case ToolbarIcon::VolumeDown:
+        painter.setBrush(QColor(QStringLiteral("#dbeafe")));
+        painter.drawPolygon(QPolygonF{{10, 21}, {16, 21}, {25, 14}, {25, 34}, {16, 27}, {10, 27}});
+        painter.setBrush(Qt::NoBrush);
+        if (icon == ToolbarIcon::VolumeUp) { line(34, 19, 34, 29); line(29, 24, 39, 24); }
+        else line(29, 24, 39, 24);
+        break;
+    case ToolbarIcon::Power:
+        painter.drawArc(QRectF(12, 12, 24, 24), 45 * 16, 270 * 16); line(24, 8, 24, 23); break;
+    case ToolbarIcon::Rotate:
+        painter.drawArc(QRectF(11, 11, 26, 26), 35 * 16, 270 * 16);
+        line(34, 10, 38, 17); line(38, 17, 31, 18); break;
+    case ToolbarIcon::Screenshot:
+        rounded(QRectF(9, 15, 30, 21)); rounded(QRectF(17, 11, 10, 5), 1.5);
+        painter.drawEllipse(QRectF(19, 19, 10, 10)); break;
+    case ToolbarIcon::Install:
+        rounded(QRectF(11, 12, 26, 25)); line(24, 16, 24, 29); line(19, 24, 24, 29); line(29, 24, 24, 29);
+        line(16, 39, 32, 39); break;
+    case ToolbarIcon::Fullscreen:
+        line(11, 20, 11, 11); line(11, 11, 20, 11); line(28, 11, 37, 11); line(37, 11, 37, 20);
+        line(37, 28, 37, 37); line(37, 37, 28, 37); line(20, 37, 11, 37); line(11, 37, 11, 28); break;
+    case ToolbarIcon::Settings:
+        painter.drawEllipse(QRectF(17, 17, 14, 14)); painter.drawEllipse(QRectF(21, 21, 6, 6));
+        for (const QPointF& point : {QPointF(24, 9), QPointF(24, 39), QPointF(9, 24), QPointF(39, 24),
+                                    QPointF(13.4, 13.4), QPointF(34.6, 34.6), QPointF(34.6, 13.4), QPointF(13.4, 34.6)}) {
+            painter.drawPoint(point);
+        }
+        break;
+    case ToolbarIcon::Instances:
+        painter.drawEllipse(QRectF(12, 12, 10, 10)); painter.drawEllipse(QRectF(27, 15, 8, 8));
+        painter.drawArc(QRectF(8, 21, 18, 15), 30 * 16, 120 * 16);
+        painter.drawArc(QRectF(24, 23, 14, 12), 30 * 16, 120 * 16); break;
+    }
+    return QIcon(canvas);
+}
+
+} // namespace
+
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
 {
@@ -34,10 +108,13 @@ MainWindow::MainWindow(QWidget* parent)
     setMinimumSize(480, 700);
     setStyleSheet(QStringLiteral(
         "QMainWindow { background: #171a21; color: #edf2f7; }"
-        "QToolBar { background: #202633; border: 0; spacing: 8px; padding: 8px; }"
-        "QToolButton { border-radius: 8px; padding: 8px; }"
-        "QToolButton:hover { background: #35445d; }"
-        "QComboBox { background: #2a3343; border: 1px solid #465874; border-radius: 6px; padding: 5px; min-width: 94px; }"
+        "QToolBar { background: #111827; border: 0; border-left: 1px solid #334155; spacing: 6px; padding: 9px 7px; }"
+        "QToolBar::separator { height: 1px; background: #334155; margin: 5px 3px; }"
+        "QToolButton { background: transparent; border: 1px solid transparent; border-radius: 10px; padding: 8px; min-width: 36px; min-height: 36px; }"
+        "QToolButton:hover { background: #1e3a5f; border-color: #315b8f; }"
+        "QToolButton:pressed { background: #2563eb; }"
+        "QToolButton:disabled { opacity: 0.35; }"
+        "QComboBox { background: #1e293b; border: 1px solid #475569; border-radius: 8px; padding: 6px; min-width: 94px; }"
         "QStatusBar { background: #202633; color: #cbd5e1; }"));
     // Leave enough horizontal room for Android's first-run authorization
     // dialogs beside the vertical toolbar, even on a 1280px-wide desktop.
@@ -178,37 +255,25 @@ void MainWindow::createToolbar()
     toolbar->setIconSize(QSize(22, 22));
     toolbar->setMinimumWidth(52);
 
-    const auto iconFor = [this](const QStyle::StandardPixmap icon) {
-        return style()->standardIcon(icon);
-    };
-    const auto addStub = [this, toolbar, &iconFor](const QString& label, const QStyle::StandardPixmap icon) {
+    const auto addKeyAction = [this, toolbar](const QString& label, const int keycode, const ToolbarIcon icon) {
         QAction* action = toolbar->addAction(label);
-        action->setIcon(iconFor(icon)); action->setToolTip(label);
-        connect(action, &QAction::triggered, this, [label]() {
-            qInfo().noquote() << QStringLiteral("%1 button pressed (not yet connected).")
-                                     .arg(label);
-        });
-    };
-
-    const auto addKeyAction = [this, toolbar, &iconFor](const QString& label, const int keycode, const QStyle::StandardPixmap icon) {
-        QAction* action = toolbar->addAction(label);
-        action->setIcon(iconFor(icon)); action->setToolTip(label);
+        action->setIcon(makeToolbarIcon(icon)); action->setToolTip(label);
         m_adbActions.append(action);
         connect(action, &QAction::triggered, this, [this, keycode]() {
             m_adbBridge.sendKeyEvent(keycode);
         });
     };
 
-    addKeyAction(QStringLiteral("Home"), 3, QStyle::SP_DirHomeIcon);
-    addKeyAction(QStringLiteral("Back"), 4, QStyle::SP_ArrowBack);
-    addKeyAction(QStringLiteral("Recents"), 187, QStyle::SP_FileDialogDetailedView);
+    addKeyAction(QStringLiteral("Home"), 3, ToolbarIcon::Home);
+    addKeyAction(QStringLiteral("Back"), 4, ToolbarIcon::Back);
+    addKeyAction(QStringLiteral("Recents"), 187, ToolbarIcon::Recents);
     toolbar->addSeparator();
-    addKeyAction(QStringLiteral("Volume +"), 24, QStyle::SP_MediaVolume);
-    addKeyAction(QStringLiteral("Volume -"), 25, QStyle::SP_MediaVolumeMuted);
-    addKeyAction(QStringLiteral("Power"), 26, QStyle::SP_BrowserStop);
+    addKeyAction(QStringLiteral("Volume +"), 24, ToolbarIcon::VolumeUp);
+    addKeyAction(QStringLiteral("Volume -"), 25, ToolbarIcon::VolumeDown);
+    addKeyAction(QStringLiteral("Power"), 26, ToolbarIcon::Power);
     toolbar->addSeparator();
     QAction* rotateAction = toolbar->addAction(QStringLiteral("Rotate"));
-    rotateAction->setIcon(iconFor(QStyle::SP_BrowserReload)); rotateAction->setToolTip(QStringLiteral("Rotate"));
+    rotateAction->setIcon(makeToolbarIcon(ToolbarIcon::Rotate)); rotateAction->setToolTip(QStringLiteral("Rotate"));
     connect(rotateAction, &QAction::triggered, this, [this] {
         if (!m_instanceManager || m_instanceName.isEmpty()) return;
         auto config = m_instanceManager->getConfig(m_instanceName);
@@ -229,17 +294,17 @@ void MainWindow::createToolbar()
         applyLiveDisplaySettings();
     });
     QAction* screenshotAction = toolbar->addAction(QStringLiteral("Screenshot"));
-    screenshotAction->setIcon(iconFor(QStyle::SP_DialogSaveButton)); screenshotAction->setToolTip(QStringLiteral("Screenshot"));
+    screenshotAction->setIcon(makeToolbarIcon(ToolbarIcon::Screenshot)); screenshotAction->setToolTip(QStringLiteral("Screenshot"));
     m_adbActions.append(screenshotAction);
     connect(screenshotAction, &QAction::triggered, this, &MainWindow::saveScreenshot);
     QAction* installAction = toolbar->addAction(QStringLiteral("Install APK"));
-    installAction->setIcon(iconFor(QStyle::SP_FileDialogNewFolder)); installAction->setToolTip(QStringLiteral("Install APK"));
+    installAction->setIcon(makeToolbarIcon(ToolbarIcon::Install)); installAction->setToolTip(QStringLiteral("Install APK"));
     m_adbActions.append(installAction);
     connect(installAction, &QAction::triggered, this, &MainWindow::installSelectedApk);
     toolbar->addSeparator();
 
     m_fullscreenAction = toolbar->addAction(QStringLiteral("Fullscreen"));
-    m_fullscreenAction->setIcon(iconFor(QStyle::SP_TitleBarMaxButton)); m_fullscreenAction->setToolTip(QStringLiteral("Fullscreen"));
+    m_fullscreenAction->setIcon(makeToolbarIcon(ToolbarIcon::Fullscreen)); m_fullscreenAction->setToolTip(QStringLiteral("Fullscreen"));
     m_fullscreenAction->setCheckable(true);
     connect(m_fullscreenAction, &QAction::triggered,
             this, [this](const bool enabled) {
@@ -264,7 +329,7 @@ void MainWindow::createToolbar()
 
     toolbar->addSeparator();
     QAction* settings = toolbar->addAction(QStringLiteral("Settings"));
-    settings->setIcon(iconFor(QStyle::SP_FileDialogContentsView)); settings->setToolTip(QStringLiteral("Instance Settings"));
+    settings->setIcon(makeToolbarIcon(ToolbarIcon::Settings)); settings->setToolTip(QStringLiteral("Instance Settings"));
     connect(settings, &QAction::triggered, this, [this] {
         if (!m_instanceManager) return;
         SettingsDialog dialog(m_instanceManager->getConfig(m_instanceName), m_instanceManager->isRunning(m_instanceName), this);
@@ -280,7 +345,7 @@ void MainWindow::createToolbar()
         }
     });
     QAction* instancesAction = toolbar->addAction(QStringLiteral("Instances"));
-    instancesAction->setIcon(iconFor(QStyle::SP_DirIcon)); instancesAction->setToolTip(QStringLiteral("Instances"));
+    instancesAction->setIcon(makeToolbarIcon(ToolbarIcon::Instances)); instancesAction->setToolTip(QStringLiteral("Instances"));
     connect(instancesAction, &QAction::triggered,
             this, &MainWindow::instanceListRequested);
     addToolBar(Qt::RightToolBarArea, toolbar);
