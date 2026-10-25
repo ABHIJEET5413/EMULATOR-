@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QJsonArray>
+#include <QPoint>
 #include <QPointer>
 #include <QSize>
 #include <QSet>
@@ -47,6 +48,10 @@ public:
     /** Route a native keyboard event to the focused guest and release all owners on key-up. */
     static bool dispatchNativeKeyEvent(int virtualKey, bool down);
 
+    /** Route a native mouse event over the embedded QEMU child window through QMP. */
+    static bool dispatchNativeMouseEvent(QPoint screenPosition, Qt::MouseButton button,
+                                         bool down, bool move);
+
     /** Convert a widget coordinate to QMP's 0..32767 absolute range. */
     static int scaleToQmpAxis(int coordinate, int extent);
 
@@ -61,10 +66,12 @@ private:
     bool handleMouseEvent(QMouseEvent* event);
     bool handleKeyEvent(QKeyEvent* event, bool down);
     bool sendKeyToGuest(Qt::Key key, bool down);
+    bool handleNativeMouseEvent(QPoint screenPosition, Qt::MouseButton button, bool down, bool move);
     void sendTouchPosition(int x, int y, bool down);
     void sendTouchMove(int x, int y);
     void releaseHeldInput();
     bool isEmbeddedDisplayFocused() const;
+    bool isPointerOverEmbeddedDisplay(QPoint screenPosition) const;
     bool sendInputEvents(const QJsonArray& events);
 
     QPointer<QWidget> m_displayWidget;

@@ -67,6 +67,8 @@ QJsonObject keyEvent(const int keyCode, const bool down)
 #ifdef Q_OS_WIN
 QList<QPointer<InputHandler>> g_keyboardHandlers;
 HHOOK g_keyboardHook{nullptr};
+QList<QPointer<InputHandler>> g_mouseHandlers;
+HHOOK g_mouseHook{nullptr};
 
 Qt::Key keyFromVirtualKey(const UINT virtualKey)
 {
@@ -138,6 +140,38 @@ LRESULT CALLBACK keyboardHookProc(const int code, const WPARAM message, const LP
     }
     return CallNextHookEx(g_keyboardHook, code, message, data);
 }
+
+Qt::MouseButton mouseButtonFromMessage(const WPARAM message)
+{
+    switch (message) {
+    case WM_LBUTTONDOWN:
+    case WM_LBUTTONUP: return Qt::LeftButton;
+    case WM_RBUTTONDOWN:
+    case WM_RBUTTONUP: return Qt::RightButton;
+    case WM_MBUTTONDOWN:
+    case WM_MBUTTONUP: return Qt::MiddleButton;
+    default: return Qt::NoButton;
+    }
+}
+
+LRESULT CALLBACK mouseHookProc(const int code, const WPARAM message, const LPARAM data)
+{
+    if (code == HC_ACTION) {
+        const bool move = message == WM_MOUSEMOVE;
+        const bool down = message == WM_LBUTTONDOWN || message == WM_RBUTTONDOWN
+            || message == WM_MBUTTONDOWN;
+        const bool up = message == WM_LBUTTONUP || message == WM_RBUTTONUP
+            || message == WM_MBUTTONUP;
+        if (move || down || up) {
+            const auto* mouseData = reinterpret_cast<const MSLLHOOKSTRUCT*>(data);
+            if (InputHandler::dispatchNativeMouseEvent(
+                    QPoint(mouseData->pt.x, mouseData->pt.y), mouseButtonFromMessage(message), down, move)) {
+                return 1;
+            }
+        }
+    }
+    return CallNextHookEx(g_mouseHook, code, message, data);
+}
 #endif
 
 } // namespace
@@ -166,6 +200,11 @@ InputHandler::~InputHandler()
     if (g_keyboardHandlers.isEmpty() && g_keyboardHook) {
         UnhookWindowsHookEx(g_keyboardHook);
         g_keyboardHook = nullptr;
+    }
+    g_mouseHandlers.removeAll(this);
+    if (g_mouseHandlers.isEmpty() && g_mouseHook) {
+        UnhookWindowsHookEx(g_mouseHook);
+        g_mouseHook = nullptr;
     }
 #endif
 }
@@ -207,6 +246,16 @@ void InputHandler::installOn(QWidget* displayWidget, QemuController* controller)
                                            0);
         if (!g_keyboardHook) {
             qWarning() << "Could not install the guest keymap keyboard hook.";
+        }
+    }
+    if (!g_mouseHandlers.contains(this)) {
+        g_mouseHandlers.append(this);
+    }
+    if (!g_mouseHook) {
+        g_mouseHook = SetWindowsHookExW(WH_MOUSE_LL, mouseHookProc,
+                                        GetModuleHandleW(nullptr), 0);
+        if (!g_mouseHook) {
+            qWarning() << "Could not install the guest mouse forwarding hook.";
         }
     }
 #endif
@@ -456,10 +505,30 @@ bool InputHandler::dispatchNativeKeyEvent(int virtualKey, bool down)
 #endif
 }
 
+bool InputHandler::dispatchNativeMouseEvent(const QPoint screenPosition,
+                                            const Qt::MouseButton button,
+                                            const bool down,
+                                            const bool move)
+{
+#ifdef Q_OS_WIN
+    for (const QPointer<InputHandler>& handler : std::as_const(g_mouseHandlers)) {
+        if (handler && handler->handleNativeMouseEvent(screenPosition, button, down, move)) {
+            return true;
+        }
+    }
+#else
+    Q_UNUSED(screenPosition)
+    Q_UNUSED(button)
+    Q_UNUSED(down)
+    Q_UNUSED(move)
+#endif
+    return false;
+}
+
 bool InputHandler::isEmbeddedDisplayFocused() const
 {
 #ifdef Q_OS_WIN
-    const auto* display = qobject_cast<const DisplayEmbed*>(m_displayWidget.data());
+    auto* display = qobject_cast<DisplayEmbed*>(m_displayWidget.data());
     if (!display || !display->hasEmbeddedWindow()) {
         return false;
     }
@@ -483,6 +552,93 @@ bool InputHandler::isEmbeddedDisplayFocused() const
     return threadInfo.hwndFocus == qemuWindow
         || IsChild(qemuWindow, threadInfo.hwndFocus);
 #else
+    return false;
+#endif
+}
+
+bool InputHandler::isPointerOverEmbeddedDisplay(const QPoint screenPosition) const
+{
+#ifdef Q_OS_WIN
+    auto* display = qobject_cast<DisplayEmbed*>(m_displayWidget.data());
+    if (!display || !display->hasEmbeddedWindow()) {
+        return false;
+    }
+    const HWND qemuWindow = reinterpret_cast<HWND>(display->embeddedWindow());
+    if (!IsWindow(qemuWindow)) {
+        return false;
+    }
+    const POINT nativePoint{screenPosition.x(), screenPosition.y()};
+    const HWND pointedWindow = WindowFromPoint(nativePoint);
+    return pointedWindow == qemuWindow || IsChild(qemuWindow, pointedWindow);
+#else
+    Q_UNUSED(screenPosition)
+    return false;
+#endif
+}
+
+bool InputHandler::handleNativeMouseEvent(const QPoint screenPosition,
+                                          const Qt::MouseButton button,
+                                          const bool down,
+                                          const bool move)
+{
+#ifdef Q_OS_WIN
+    auto* display = qobject_cast<DisplayEmbed*>(m_displayWidget.data());
+    if (!display || !display->hasEmbeddedWindow()) {
+        return false;
+    }
+    const HWND qemuWindow = reinterpret_cast<HWND>(display->embeddedWindow());
+    if (!IsWindow(qemuWindow)) {
+        return false;
+    }
+
+    if (down) {
+        display->focusEmbeddedWindow();
+    }
+
+    const bool ownsButton = button != Qt::NoButton
+        && m_pressedButtons.contains(static_cast<int>(button));
+    if (!isPointerOverEmbeddedDisplay(screenPosition)
+        && !ownsButton
+        && !isEmbeddedDisplayFocused()) {
+        return false;
+    }
+
+    POINT position{screenPosition.x(), screenPosition.y()};
+    if (!ScreenToClient(qemuWindow, &position)) {
+        return false;
+    }
+    RECT client{};
+    if (!GetClientRect(qemuWindow, &client)) {
+        return false;
+    }
+    const int clientWidth = qMax(1, client.right - client.left);
+    const int clientHeight = qMax(1, client.bottom - client.top);
+    QJsonArray events{
+        absoluteAxisEvent(QStringLiteral("x"), scaleToQmpAxis(position.x, clientWidth)),
+        absoluteAxisEvent(QStringLiteral("y"), scaleToQmpAxis(position.y, clientHeight))
+    };
+    if (!move && button != Qt::NoButton) {
+        const QString qmpButton = qmpButtonName(button);
+        if (qmpButton.isEmpty()) {
+            return false;
+        }
+        events.append(buttonEvent(qmpButton, down));
+    }
+
+    const bool sent = sendInputEvents(events);
+    if (sent && !move && button != Qt::NoButton) {
+        if (down) {
+            m_pressedButtons.insert(static_cast<int>(button));
+        } else {
+            m_pressedButtons.remove(static_cast<int>(button));
+        }
+    }
+    return sent;
+#else
+    Q_UNUSED(screenPosition)
+    Q_UNUSED(button)
+    Q_UNUSED(down)
+    Q_UNUSED(move)
     return false;
 #endif
 }

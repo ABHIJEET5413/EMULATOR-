@@ -413,8 +413,9 @@ Physical key → InputHandler → KeymapEngine
   guest aspect ratio within the active monitor's work area. Boot completion applies numeric `wm size`/`wm density`
   settings through that instance's ADB serial and updates keymap coordinate scaling.
 - `DisplayEmbed` keeps the SDL child in a centered, aspect-correct rectangle instead of stretching it across
-  letterbox space. The same physical-pixel rectangle is given to Win32, preventing cursor/touch displacement
-  caused by clicks in black bars or mismatched SDL scaling.
+  letterbox space. The same physical-pixel rectangle is given to Win32. `InputHandler` intercepts mouse input
+  over that embedded child and sends it through QMP's absolute USB-tablet path using the actual Win32 client
+  rectangle, avoiding SDL reparenting/scaling cursor displacement.
 - `QemuController` applies display width/height as virtio-vga-gl xres/yres and validates optional usb-host IDs.
   The instance running lock remains held until QEMU has exited.
 - `image-build/prepare-instance-base.sh`: creates a new provisioned base via a disposable overlay;
