@@ -7,6 +7,10 @@
 **Implementation language:** C++17 and PowerShell, with JSON, CMake and Inno Setup configuration  
 **Project type:** native Windows host application that orchestrates an external Android-x86 virtual machine
 
+**Release context:** Version 2 Release Candidate 1 is published at
+[`v2.0.0-rc1`](https://github.com/ABHIJEET5413/EMULATOR-/releases/tag/v2.0.0-rc1).
+It is a prerelease; clean-PC acceptance and source/notices review remain open.
+
 > **Evidence convention.** *Verified* means directly evidenced by a tracked source, build, test, or recorded project document. *External-engine behavior* describes QEMU, WHPX, Bliss OS, ADB, Qt or Inno Setup and is not reimplemented by the project. *Inference* is explicitly labelled. Generated QEMU/ADB binaries, virtual disks and installer EXEs are excluded from Git; this report does not claim their contents were statically inspected.
 
 ## Contents
@@ -49,7 +53,7 @@
 
 Sabi is a native Windows desktop application that provides a graphical host for an Android-x86 guest. It does not emulate x86 processors itself. Instead, its C++/Qt host process validates an instance configuration, launches a separate QEMU process with the Windows Hypervisor Platform (WHPX), embeds QEMU's SDL display into a Qt window, sends machine-control commands over QEMU Machine Protocol (QMP), and uses Android Debug Bridge (ADB) for Android-level actions. Each Android installation writes to a per-user qcow2 overlay backed by a shared read-only Bliss OS image. The design provides independent instances, configurable resources, APK installation, file transfer, keyboard mapping, navigation controls, logging, and an offline Inno Setup packaging path.
 
-The strongest evidence supports compilation and focused automated tests. The project README records that ten registered CTest suites passed on 21 October 2026 and that installer staging hashes passed. It also explicitly records that clean-machine installation, fresh-device ADB authorization, and certain physical input/display acceptance checks remain outstanding. Those limitations are preserved here rather than converted into claims of completion.
+The strongest evidence supports compilation and focused automated tests. The Version 2 release-candidate record states that ten registered CTest suites passed on 31 October 2026 and that installer staging hashes passed. It also explicitly records that clean-machine installation, fresh-device ADB authorization, and certain physical input/display acceptance checks remain outstanding. Those limitations are preserved here rather than converted into claims of completion.
 
 **Keywords:** Android-x86, Bliss OS, QEMU, WHPX, Qt 6, QMP, ADB, qcow2, Inno Setup, Windows virtualization.
 
@@ -248,7 +252,7 @@ Inputs are command-line arguments and local resource paths. Outputs are a GUI, p
 
 `DisplayEmbed::embedWindow` (`display_embed.cpp:101`) receives a discovered Win32 QEMU SDL window handle. On Windows it alters/reparents that child using `SetParent`, keeps the native Qt widget opaque/black behind it, handles resize events and calculates aspect-preserving geometry. `focusEmbeddedWindow` reestablishes focus using Windows APIs. A deliberate black letterbox region is preferable to non-uniform scaling.
 
-`InputHandler` installs an event filter in `installOn` and handles Qt mouse/key events at `input_handler.cpp:306`. It scales Qt coordinates to QMP absolute axes, maps buttons/keys, forwards keymap-generated actions and releases held input on focus loss. `forwardNativeMouseEvent` (line 375) posts Windows mouse messages to the embedded SDL child as the recent routing path. The source also provides controlled native-event dispatch helpers for fixture testing. A physical report of a cursor that cannot enter or control the display is therefore a current acceptance issue, not evidence to claim this feature is universally solved.
+`InputHandler` installs an event filter in `installOn` and handles Qt mouse/key events at `input_handler.cpp:306`. For physical Windows input, a scoped low-level mouse hook routes guest-rectangle coordinates through QMP absolute axes and button transitions. It deliberately allows `WM_MOUSEMOVE` to continue so a touchpad cursor can cross into the foreign SDL child; only successful button transitions are consumed to avoid duplicate guest touches. It maps keys, forwards keymap-generated actions and releases held input on focus loss. The source also provides controlled native-event dispatch helpers for fixture testing. The cursor-boundary defect was fixed and physically rechecked on the development PC; clean-PC and display-scale validation remain pending.
 
 ### 6.4 Keymap engine
 
@@ -456,11 +460,11 @@ Recommended measurement plan: record cold/warm boot time to `sys.boot_completed`
 | `native_keyboard` | Native-window fixtures, focus isolation and host edit controls. | Pass recorded. | Tests keyboard fixture path, not every physical guest display condition. |
 | `test_adb_live` | Opt-in live guest operation. | Not registered in CTest. | Must be explicitly executed and observed. |
 
-The README’s explicit recorded result is **10/10 registered suites passed in 28.33 seconds on 21 October 2026**, with **3,399 staged SHA-256 paths passing**. This is historical project evidence, not a claim that tests were rerun during preparation of this static report. Recent mouse/display changes and any post-21-October build require a fresh build/test record.
+The release-candidate record is **10/10 registered suites passed in 28.29 seconds on 31 October 2026**, with **3,399 staged SHA-256 paths passing**. The Version 2 RC installer was rebuilt from the tested source and is documented in `docs/V2-RELEASE-NOTES.md`. This remains evidence from one development PC, not clean-machine acceptance.
 
 ### 11.2 Missing validation
 
-Not-run or incomplete evidence includes a clean Windows installation, fresh Android RSA approval, full uninstall/reinstall data-retention A/B test, third-party source/notices review, webcam pass-through, physical mouse interaction over the current embedded SDL route, and quantified performance benchmarking. The repository documents these openly in README and Phase 6 testing material.
+Not-run or incomplete evidence includes a clean Windows installation, fresh Android RSA approval, full uninstall/reinstall data-retention A/B test, third-party source/notices review, webcam pass-through, display-scale mouse validation on another PC, and quantified performance benchmarking. The repository documents these openly in README and Phase 6 testing material.
 
 ## 12. Limitations, future scope and conclusion
 

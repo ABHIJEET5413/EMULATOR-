@@ -1,4 +1,4 @@
-DroidBox remote clean-PC testing prompt
+Sabi v2 remote clean-PC testing prompt
 =======================================
 
 Copy everything below this line into Codex on the separate Windows PC.
@@ -11,21 +11,21 @@ write application code, change the installer, modify the GitHub repository, or
 delete existing user data. Stop a test case at its first failure and record the
 exact command output and screenshots/log paths when available.
 
-Project: DroidBox Android emulator
-Repository: https://github.com/HEARTLESS5413/EMULATOR-
-Testing release: https://github.com/HEARTLESS5413/EMULATOR-/releases/tag/v0.1.0-test.1
-Installer asset: DroidBoxSetup.exe
+Project: Sabi Android emulator
+Repository: https://github.com/ABHIJEET5413/EMULATOR-
+Testing release: https://github.com/ABHIJEET5413/EMULATOR-/releases/tag/v2.0.0-rc1
+Installer asset: SabiSetup.exe
 Expected SHA-256:
-057E2ECFD75986D81D1D7328328F77C48E2A244C04204B9472D41A8446AD7055
+8186CA60D6DE7FCE7F3F3C526E66F5A177FC5556DE75799BD85F33D010EAFDB1
 Acceptance checklist:
-https://raw.githubusercontent.com/HEARTLESS5413/EMULATOR-/main/docs/CLEAN-PC-ACCEPTANCE.txt
+https://raw.githubusercontent.com/ABHIJEET5413/EMULATOR-/main/docs/CLEAN-PC-ACCEPTANCE.txt
 
 Goal
 ----
 Download the official prerelease installer, test it on this PC using the
 clean-PC acceptance checklist, and create the result file:
 
-  %USERPROFILE%\Desktop\DroidBox-clean-PC-test-results.txt
+  %USERPROFILE%\Desktop\Sabi-v2-clean-PC-test-results.txt
 
 Use plain text. Include every test case as PASS, FAIL, BLOCKED, or NOT RUN.
 Never invent a pass result. This is a prerelease test, not a production
@@ -33,9 +33,9 @@ release. Do not publish a GitHub release or push any changes.
 
 Safety and scope
 ----------------
-1. Do not delete Android/ADB/DroidBox files belonging to an existing user.
-2. If this PC has previously run DroidBox, has %USERPROFILE%\.android\adbkey,
-   or has DroidBox data, report BLOCKED and use a new Windows user account or
+1. Do not delete Android/ADB/Sabi files belonging to an existing user.
+2. If this PC has previously run Sabi or DroidBox, has %USERPROFILE%\.android\adbkey,
+   or has Sabi data, report BLOCKED and use a new Windows user account or
    a clean Windows VM. Do not remove those files to make the test pass.
 3. The installer may request elevation. Explain this to the user and let them
    approve it. Do not bypass Windows security prompts.
@@ -62,7 +62,7 @@ Procedure
 
 3. Verify the downloaded file before executing it:
 
-       Get-FileHash "$env:USERPROFILE\Downloads\DroidBoxSetup.exe" -Algorithm SHA256
+       Get-FileHash "$env:USERPROFILE\Downloads\SabiSetup.exe" -Algorithm SHA256
 
    Use the actual downloaded path if different. Compare against the expected
    hash above. If it differs, mark Installer integrity FAIL and stop.
@@ -91,10 +91,10 @@ Procedure
    connection. If it fails, capture `adb devices`, the application log, and
    relevant QEMU logs once, then investigate the recorded cause.
 
-6. At the end, create %USERPROFILE%\Desktop\DroidBox-clean-PC-test-results.txt
+6. At the end, create %USERPROFILE%\Desktop\Sabi-v2-clean-PC-test-results.txt
    using this exact structure:
 
-   DroidBox clean-PC acceptance results
+   Sabi v2 clean-PC acceptance results
    ====================================
    Date/time (local):
    Tester:

@@ -7,11 +7,11 @@ development builds do not claim that review is complete.
 
 ---
 
-## Original Work (DroidBox)
+## Original Work (Sabi; formerly DroidBox)
 
 | Component | License | Notes |
 |---|---|---|
-| DroidBox host application | MIT | All code in `host-app/` |
+| Sabi host application | MIT | All code in `host-app/` |
 | Build scripts & tooling | MIT | `image-build/`, `vm/scripts/` |
 | Installer script | MIT | `installer/` |
 | Documentation | MIT | `docs/` |
@@ -46,8 +46,8 @@ development builds do not claim that review is complete.
 ## License Compliance Checklist
 
 ### QEMU (GPLv2)
-- [x] QEMU is a **separate executable** — DroidBox does NOT link to QEMU code
-- [x] DroidBox communicates with QEMU only via IPC (QMP socket, process launch)
+- [x] QEMU is a **separate executable** — Sabi does NOT link to QEMU code
+- [x] Sabi communicates with QEMU only via IPC (QMP socket, process launch)
 - [x] Full GPLv2 license text included in `installer/licenses/QEMU-LICENSE.txt`
 - [x] Source-offer text linked from the installer license screen
 - [x] Exact Windows fork commit identified (not the older GitHub mirror tip)
@@ -58,7 +58,7 @@ development builds do not claim that review is complete.
 - [x] User can replace Qt DLLs with their own build
 - [x] Full LGPL v3 text included in `installer/licenses/QT-LICENSE.txt`
 - [x] Pinned Qt Base/SVG sources and source-request information staged for installer
-- [x] DroidBox's own source is available (MIT license)
+- [x] Sabi's own source is available (MIT license)
 
 ### Bliss OS (mixed licenses)
 - [x] Apache 2.0 text included in `installer/licenses/BLISS-LICENSE.txt`
@@ -112,8 +112,8 @@ archives and notices still belong in the final installer release inventory.
 ## How to Verify Dynamic Linking
 
 ```powershell
-# Verify DroidBox.exe does not statically link Qt:
-dumpbin /dependents DroidBox.exe
+# Verify Sabi.exe does not statically link Qt:
+dumpbin /dependents Sabi.exe
 # Should show Qt6Core.dll, Qt6Widgets.dll, Qt6Network.dll, etc.
 
 # Verify QEMU is a separate process:

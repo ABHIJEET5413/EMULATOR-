@@ -9,13 +9,15 @@ runtime dependencies into one `SabiSetup.exe`.
 
 ## Current status
 
-Verification recorded on **21–31 October 2026**:
+Verification recorded through **31 October 2026** for
+[`v2.0.0-rc1`](https://github.com/ABHIJEET5413/EMULATOR-/releases/tag/v2.0.0-rc1):
 
 - Release application and test targets build with MSVC 2022 and Qt 6.12.0.
 - All **10 registered CTest suites pass**, with zero failures.
 - Installer preflight verified **3,399 staged file paths and SHA-256 hashes**.
-- Latest local Inno Setup output is **1,810,387,794 bytes**; SHA-256 and test scope are
-  recorded in [Phase 6 test results](docs/PHASE-6-TESTING.md).
+- The published Version 2 release-candidate installer is **1,810,483,824
+  bytes**, SHA-256 `8186ca60d6de7fce7f3f3c526e66f5a177fc5556de75799bd85f33d010eafdb1`.
+  See the [Version 2 release notes](docs/V2-RELEASE-NOTES.md).
 - The latest setup completed a silent in-place upgrade to a path containing
   spaces, passed the WHPX startup check, and launched its bundled QEMU with the
   display embedded. Android 11 reached Home, ADB reported `device`, and
@@ -24,28 +26,29 @@ Verification recorded on **21–31 October 2026**:
 - Previous live checks verified Android boot, ADB authorization, multiple guests,
   and keyboard input isolation. See the acceptance records linked below.
 - The Windows touchpad cursor boundary defect in the embedded display was fixed
-  and physically rechecked on the development PC. The final installer must be
-  rebuilt from that release-candidate source before distribution.
-- The rebuilt Version 2 release-candidate installer is 1,810,483,824 bytes;
-  SHA-256: `8186ca60d6de7fce7f3f3c526e66f5a177fc5556de75799bd85f33d010eafdb1`.
-  It is a local artifact and remains subject to the pending public-distribution
-  source review and clean-PC acceptance listed below.
+  and physically rechecked on the development PC; the published RC installer
+  includes that fix.
 
 **Still pending:** clean-machine offline installation, first-run RSA approval on
 a fresh guest, A/B application-data retention checks, and the completed
 third-party source/notices review. The local profile already had data and an
 authorized ADB key; its QEMU path was updated for this parallel install.
-`installer/release-inventory.json` is absent, so public redistribution is not
-approved. The setup EXE is a local build artifact and is not on GitHub.
+`installer/release-inventory.json` is absent, so final distribution compliance
+review remains open. The installer is published as a GitHub prerelease for
+acceptance testing, not as a final stable release.
 Webcam passthrough remains experimental and unverified; a test-pattern camera
 is unavailable in the bundled QEMU build.
 
 This repository contains source and packaging instructions. Runtime binaries,
 virtual disks, downloaded archives, and generated installers are excluded from
-Git. The local build record is **not a public installer download**.
+Git. The Version 2 RC installer is available only as a GitHub release asset;
+local `installer/Output` files are build artifacts, not authoritative downloads.
 
 See [Phase 6 test results](docs/PHASE-6-TESTING.md) for the exact installer hash,
 test scope, and remaining acceptance checklist.
+
+Download details and Version 2 changes are in the
+[Version 2 release notes](docs/V2-RELEASE-NOTES.md).
 
 ## Contents
 
@@ -402,8 +405,8 @@ After staging the installer, verify every staged file separately:
 powershell -NoProfile -ExecutionPolicy Bypass -File tests/test_installer.ps1 -BundlePath "$PWD/installer/bundle"
 ```
 
-**Recorded result:** 10/10 suites passed in 28.33 seconds on 21 October 2026; all
-3,399 staged hashes also passed. CTest does not install the product or validate
+**Release-candidate result:** 10/10 suites passed in 28.29 seconds on 31 October
+2026; all 3,399 staged hashes also passed. CTest does not install the product or validate
 every physical device, guest interaction, or Windows installer flow.
 
 Live ADB tests are explicit opt-ins, excluded from CTest, and can install an APK

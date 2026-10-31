@@ -1,9 +1,10 @@
 # Changelog
 
-## 2.0.0 — Sabi v2 (in development)
+## 2.0.0-rc1 — Sabi v2 release candidate (31 October 2026)
 
-**Status:** release candidate prepared; public distribution remains subject to
-the source/notices inventory and clean-PC acceptance documented in Phase 6.
+**Status:** published as a GitHub prerelease. Final stable/distribution
+acceptance remains subject to the source/notices inventory and clean-PC
+acceptance documented in Phase 6.
 
 - Renamed the desktop application and installer from DroidBox to Sabi.
 - Renamed the executable to `Sabi.exe`, the installer script to `sabi.iss`,

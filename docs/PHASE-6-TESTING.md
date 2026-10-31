@@ -4,7 +4,7 @@ Build the offline package with [installer/BUILD.md](../installer/BUILD.md).
 Build success and automated checks do not certify a clean-machine install or
 public redistribution readiness.
 
-## Results recorded 21–22 October 2026
+## Historical Version 1 results recorded 21–22 October 2026
 
 - MSVC 2022 / Qt 6.12.0 Release application and test targets built.
 - CTest: **10/10 suites passed** (including `launch_channel` and
@@ -22,7 +22,7 @@ public redistribution readiness.
 - Live ADB checks passed APK installation, file push, media scan, PNG screenshot
   capture/decoding, and Android navigation key events against that guest.
 - The package preflight verified all **3,399** staged paths and hashes.
-- Latest local setup artifact: `installer/Output/DroidBoxSetup.exe`,
+- Historical local Version 1 setup artifact: `installer/Output/DroidBoxSetup.exe`,
   **1,810,387,794 bytes**, SHA-256
   `057e2ecfd75986d81d1d7328328f77c48e2a244c04204b9472d41a8446ad7055`.
   Generated installer output is ignored by Git and is not part of the source
@@ -47,7 +47,7 @@ public redistribution readiness.
   outer width on this desktop). ADB reached `device`; the guest reported
   `sys.boot_completed=1`, Android 11, and the Bliss launcher. A screenshot
   confirmed the Android Home screen. The existing overlay remained usable.
-- This account had prior DroidBox data and an authorized ADB key. These results
+- This account had prior Version 1 DroidBox data and an authorized ADB key. These results
   do not prove first-run RSA authorization or clean-account overlay creation.
 
 These checks were performed on one already-configured PC, with network access
@@ -55,10 +55,10 @@ available. A clean, disconnected Windows machine and a second Windows account
 were unavailable, so offline first-run behavior on an unconfigured system is
 not established. The in-place installer upgrade succeeded, but a separate
 application-data A/B retention check is still outstanding. Public redistribution
-remains blocked: `installer/release-inventory.json` has not been reviewed or
+is not complete: `installer/release-inventory.json` has not been reviewed or
 created, and the source, notices, and license inventory must be completed as
-described in [installer/BUILD.md](../installer/BUILD.md). The local setup EXE is
-ignored by Git and has not been published.
+described in [installer/BUILD.md](../installer/BUILD.md). That historical local
+setup EXE is ignored by Git and was not published.
 
 ## Version 2 release-candidate follow-up — 31 October 2026
 
@@ -73,8 +73,8 @@ ignored by Git and has not been published.
   tested: the cursor entered the Android display and touchpad click/drag
   operation worked while toolbar controls remained reachable.
 - `display_input` and `native_keyboard` passed after that fix. The complete
-  CTest run and installer below must be regenerated from the final committed
-  release-candidate source before distribution.
+  CTest suite subsequently passed 10/10 on the final committed
+  release-candidate source before the installer was published.
 - The final release-candidate rebuild completed from commit `94900e5` after
   a fresh bundle manifest verified 3,399 payload paths and hashes. Its output
   is `installer/Output/SabiSetup.exe`, 1,810,483,824 bytes, SHA-256
@@ -110,7 +110,7 @@ ignored by Git and has not been published.
 
 ### Uninstall
 
-- [ ] Close DroidBox and QEMU before uninstalling.
+- [ ] Close Sabi and QEMU before uninstalling.
 - [ ] Verify the chosen keep/delete option affects only the current account's data.
 - [ ] Reinstall elsewhere and boot retained instances with the bundled QEMU.
 - [ ] Other accounts and unrelated files remain untouched.

@@ -1,5 +1,10 @@
-DroidBox Version 1 acceptance test cases
-=========================================
+Historical DroidBox Version 1 acceptance test cases
+====================================================
+
+Superseded for current release-candidate testing by
+`docs/CLEAN-PC-ACCEPTANCE.txt` and `docs/V2-RELEASE-NOTES.md`. This file is
+retained as a Version 1 historical acceptance record; its DroidBox names,
+paths, and hashes must not be used for Sabi v2.0.0-rc1.
 
 Purpose
 -------

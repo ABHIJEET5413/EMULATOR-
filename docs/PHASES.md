@@ -1,4 +1,4 @@
-# DroidBox Development Phases
+# Sabi Development Phases
 
 > Quick reference for all phases. Each phase has a detailed guide in
 > `phase-guides/` and a matching AI skill in `.agents/skills/`.
@@ -68,11 +68,11 @@ Create/clone/delete instances. Settings UI. Camera evaluation.
 ---
 
 ## Phase 6: Offline Installer
-**Files**: `installer/droidbox.iss`, license files, build scripts
+**Files**: `installer/sabi.iss`, license files, build scripts
 **Guide**: [phase-6-installer.md](phase-guides/phase-6-installer.md)
 **Skill**: `.agents/skills/phase-6-installer/SKILL.md`
 
-Inno Setup producing `DroidBoxSetup.exe`. WHPX check, shortcuts,
+Inno Setup producing `SabiSetup.exe`. WHPX check, shortcuts,
 .apk file association, license notices.
 
 ---

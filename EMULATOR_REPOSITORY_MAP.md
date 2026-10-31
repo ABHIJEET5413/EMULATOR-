@@ -90,5 +90,5 @@ flowchart TD
 
 ## Test inventory
 
-`tests/CMakeLists.txt` registers the installer preflight, WHPX-script, VM configuration, display/input, keymap, ADB fixture, instance-manager, Phase 5 UI, and native keyboard suites. `test_adb_live` is built but deliberately not registered because it targets a real Android guest. The README records 10/10 registered suites passed on 21 October 2026, while later runtime UI/input revisions require renewed physical acceptance testing.
+`tests/CMakeLists.txt` registers the installer preflight, WHPX-script, VM configuration, display/input, keymap, ADB fixture, instance-manager, Phase 5 UI, and native keyboard suites. `test_adb_live` is built but deliberately not registered because it targets a real Android guest. The Version 2 release-candidate record states that 10/10 registered suites passed on 31 October 2026. The embedded touchpad cursor fix was also physically checked on the development PC; clean-PC/display-scale acceptance remains pending.
 

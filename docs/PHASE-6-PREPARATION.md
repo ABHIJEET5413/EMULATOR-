@@ -70,7 +70,7 @@ source offer and inaccurate Apache-only description of Bliss were removed.
 
 ```powershell
 cmake -B cmake-build-phase6-fixes -S host-app -G "Visual Studio 17 2022" -A x64 -DCMAKE_PREFIX_PATH="C:/Qt/6.12.0/msvc2022_64" -DBUILD_TESTING=OFF
-cmake --build cmake-build-phase6-fixes --config Release --target DroidBox
+cmake --build cmake-build-phase6-fixes --config Release --target Sabi
 ```
 
 The Release build and the live checks above passed. The automated regression

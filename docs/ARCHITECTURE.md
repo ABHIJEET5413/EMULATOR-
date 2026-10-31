@@ -421,7 +421,7 @@ Physical key → InputHandler → KeymapEngine
 - `main.cpp`: imports the existing default disk without recreating it, launches the sole instance directly,
   otherwise shows the launcher. APK arguments target default; `--instance NAME` selects one;
   `--instances` explicitly opens the launcher. Installed writable data uses AppLocalDataLocation.
-  File logs use `droidbox-<pid>.log` to preserve complete records across multiple app processes.
+  File logs use `sabi-<pid>.log` to preserve complete records across multiple app processes.
 - `MainWindow` now wires Settings and Instances actions. It sizes the initial host window for the selected
   guest aspect ratio within the active monitor's work area. Boot completion applies numeric `wm size`/`wm density`
   settings through that instance's ADB serial and updates keymap coordinate scaling.
