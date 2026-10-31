@@ -75,6 +75,13 @@ ignored by Git and has not been published.
 - `display_input` and `native_keyboard` passed after that fix. The complete
   CTest run and installer below must be regenerated from the final committed
   release-candidate source before distribution.
+- The final release-candidate rebuild completed from commit `94900e5` after
+  a fresh bundle manifest verified 3,399 payload paths and hashes. Its output
+  is `installer/Output/SabiSetup.exe`, 1,810,483,824 bytes, SHA-256
+  `8186ca60d6de7fce7f3f3c526e66f5a177fc5556de75799bd85f33d010eafdb1`.
+  The staged `Sabi.exe` SHA-256 matched the tested build
+  (`70e274a59d1ab67ffc0f0a6276b0b93e348e6d1e667a5890d3ef455577ae46ca`).
+  Inno Setup exited successfully and the wrapper reported no errors.
 
 ## Remaining manual acceptance
 

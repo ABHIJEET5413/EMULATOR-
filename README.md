@@ -26,6 +26,10 @@ Verification recorded on **21–31 October 2026**:
 - The Windows touchpad cursor boundary defect in the embedded display was fixed
   and physically rechecked on the development PC. The final installer must be
   rebuilt from that release-candidate source before distribution.
+- The rebuilt Version 2 release-candidate installer is 1,810,483,824 bytes;
+  SHA-256: `8186ca60d6de7fce7f3f3c526e66f5a177fc5556de75799bd85f33d010eafdb1`.
+  It is a local artifact and remains subject to the pending public-distribution
+  source review and clean-PC acceptance listed below.
 
 **Still pending:** clean-machine offline installation, first-run RSA approval on
 a fresh guest, A/B application-data retention checks, and the completed

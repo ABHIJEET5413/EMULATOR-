@@ -2,6 +2,9 @@
 
 ## 2.0.0 — Sabi v2 (in development)
 
+**Status:** release candidate prepared; public distribution remains subject to
+the source/notices inventory and clean-PC acceptance documented in Phase 6.
+
 - Renamed the desktop application and installer from DroidBox to Sabi.
 - Renamed the executable to `Sabi.exe`, the installer script to `sabi.iss`,
   and installer output to `SabiSetup.exe`.
