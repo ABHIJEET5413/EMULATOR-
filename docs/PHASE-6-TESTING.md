@@ -60,6 +60,22 @@ created, and the source, notices, and license inventory must be completed as
 described in [installer/BUILD.md](../installer/BUILD.md). The local setup EXE is
 ignored by Git and has not been published.
 
+## Version 2 release-candidate follow-up — 31 October 2026
+
+- The 27 October `SabiSetup.exe` completed at 1,810,465,339 bytes with SHA-256
+  `dc4f571c1c86f1f8c6a813bdae05eff6563d1cd8e80fc4162526fe3da2c31a6c`.
+  It is structurally complete; the earlier 443 MB output was an interrupted
+  Inno Setup compression result and must not be used.
+- A physical touchpad test exposed a cursor-boundary defect in the embedded
+  SDL display: the low-level hook suppressed `WM_MOUSEMOVE`. The release
+  candidate now lets motion continue to Windows and consumes only successful
+  QMP button transitions. The rebuilt installed application was physically
+  tested: the cursor entered the Android display and touchpad click/drag
+  operation worked while toolbar controls remained reachable.
+- `display_input` and `native_keyboard` passed after that fix. The complete
+  CTest run and installer below must be regenerated from the final committed
+  release-candidate source before distribution.
+
 ## Remaining manual acceptance
 
 ### Clean Windows 10/11, network disconnected

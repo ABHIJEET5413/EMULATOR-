@@ -9,7 +9,7 @@ runtime dependencies into one `SabiSetup.exe`.
 
 ## Current status
 
-Verification recorded on **21–22 October 2026**:
+Verification recorded on **21–31 October 2026**:
 
 - Release application and test targets build with MSVC 2022 and Qt 6.12.0.
 - All **10 registered CTest suites pass**, with zero failures.
@@ -23,6 +23,9 @@ Verification recorded on **21–22 October 2026**:
   This was tested on one configured PC, not a clean Windows machine.
 - Previous live checks verified Android boot, ADB authorization, multiple guests,
   and keyboard input isolation. See the acceptance records linked below.
+- The Windows touchpad cursor boundary defect in the embedded display was fixed
+  and physically rechecked on the development PC. The final installer must be
+  rebuilt from that release-candidate source before distribution.
 
 **Still pending:** clean-machine offline installation, first-run RSA approval on
 a fresh guest, A/B application-data retention checks, and the completed

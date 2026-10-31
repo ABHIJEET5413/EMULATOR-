@@ -18,7 +18,7 @@ class QemuController;
 
 /**
  * @file input_handler.h
- * @brief Forwards Qt display-area input to the guest through QMP when needed.
+ * @brief Routes display input to the guest through QMP.
  */
 class InputHandler final : public QObject {
     Q_OBJECT
@@ -59,13 +59,11 @@ public:
     static int keyCodeForQtKey(int qtKey);
 
 protected:
-    /** Observe display focus and forward mouse/keyboard events when Qt receives them. */
+    /** Observe display focus and provide a synthetic-event fallback. */
     bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
     bool handleMouseEvent(QMouseEvent* event);
-    /** Forward Qt-delivered pointer input to the embedded SDL child on Windows. */
-    bool forwardNativeMouseEvent(QMouseEvent* event);
     bool handleKeyEvent(QKeyEvent* event, bool down);
     bool sendKeyToGuest(Qt::Key key, bool down);
     bool handleNativeMouseEvent(QPoint screenPosition, Qt::MouseButton button, bool down, bool move);

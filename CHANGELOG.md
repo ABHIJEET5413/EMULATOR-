@@ -10,6 +10,11 @@
   the new root does not exist; it does not alter qcow2 overlays or backing
   files.
 - Changed new runtime logs to `sabi-<pid>.log`.
+- Fixed embedded-display pointer routing: physical cursor motion is no longer
+  suppressed at the SDL child boundary, while QMP remains responsible for
+  Android click and drag transitions.
+- Added the major-project report and repository map for implementation,
+  dependency, installation, testing, and known-limitations traceability.
 
 ## 0.1.0 — DroidBox v1
 

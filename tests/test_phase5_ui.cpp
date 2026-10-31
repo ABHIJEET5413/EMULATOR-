@@ -102,7 +102,8 @@ int main(int argc, char** argv)
     };
     if (!run(img, {"create", "-f", "qcow2", base, "16M"})) return 1;
     InstanceManager manager(root, temporary.filePath("instances"));
-    check(manager.createInstance("ui-original", {{"baseImage", base}, {"cpuCores", 1}, {"ramMB", 1024}}), "create isolated UI fixture");
+    check(manager.createInstance("ui-original", {{"baseImage", base}, {"cpuCores", 1}, {"ramMB", 1024}}),
+          "create isolated UI fixture: " + manager.lastError());
     const auto config = manager.getConfig("ui-original");
     const auto overlay = config.value("overlayImage").toString();
     if (config.isEmpty()) return 1;

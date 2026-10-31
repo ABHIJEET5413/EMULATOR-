@@ -67,6 +67,8 @@ QJsonObject keyEvent(const int keyCode, const bool down)
 #ifdef Q_OS_WIN
 QList<QPointer<InputHandler>> g_keyboardHandlers;
 HHOOK g_keyboardHook{nullptr};
+QList<QPointer<InputHandler>> g_mouseHandlers;
+HHOOK g_mouseHook{nullptr};
 
 Qt::Key keyFromVirtualKey(const UINT virtualKey)
 {
@@ -139,6 +141,45 @@ LRESULT CALLBACK keyboardHookProc(const int code, const WPARAM message, const LP
     return CallNextHookEx(g_keyboardHook, code, message, data);
 }
 
+Qt::MouseButton mouseButtonFromMessage(const WPARAM message)
+{
+    switch (message) {
+    case WM_LBUTTONDOWN:
+    case WM_LBUTTONUP: return Qt::LeftButton;
+    case WM_RBUTTONDOWN:
+    case WM_RBUTTONUP: return Qt::RightButton;
+    case WM_MBUTTONDOWN:
+    case WM_MBUTTONUP: return Qt::MiddleButton;
+    default: return Qt::NoButton;
+    }
+}
+
+LRESULT CALLBACK mouseHookProc(const int code, const WPARAM message, const LPARAM data)
+{
+    if (code == HC_ACTION) {
+        const bool move = message == WM_MOUSEMOVE;
+        const bool down = message == WM_LBUTTONDOWN || message == WM_RBUTTONDOWN
+            || message == WM_MBUTTONDOWN;
+        const bool up = message == WM_LBUTTONUP || message == WM_RBUTTONUP
+            || message == WM_MBUTTONUP;
+        if (move || down || up) {
+            const auto* mouseData = reinterpret_cast<const MSLLHOOKSTRUCT*>(data);
+            if (InputHandler::dispatchNativeMouseEvent(
+                    QPoint(mouseData->pt.x, mouseData->pt.y), mouseButtonFromMessage(message), down, move)) {
+                // Never suppress motion: swallowing WM_MOUSEMOVE prevents the
+                // Windows pointer from crossing into a foreign SDL child, which
+                // makes a touchpad cursor appear stuck at the display edge.
+                // Button events are consumed after QMP accepts them so SDL does
+                // not also generate a duplicate Android touch.
+                if (!move) {
+                    return 1;
+                }
+            }
+        }
+    }
+    return CallNextHookEx(g_mouseHook, code, message, data);
+}
+
 #endif
 
 } // namespace
@@ -167,6 +208,11 @@ InputHandler::~InputHandler()
     if (g_keyboardHandlers.isEmpty() && g_keyboardHook) {
         UnhookWindowsHookEx(g_keyboardHook);
         g_keyboardHook = nullptr;
+    }
+    g_mouseHandlers.removeAll(this);
+    if (g_mouseHandlers.isEmpty() && g_mouseHook) {
+        UnhookWindowsHookEx(g_mouseHook);
+        g_mouseHook = nullptr;
     }
 #endif
 }
@@ -208,6 +254,16 @@ void InputHandler::installOn(QWidget* displayWidget, QemuController* controller)
                                            0);
         if (!g_keyboardHook) {
             qWarning() << "Could not install the guest keymap keyboard hook.";
+        }
+    }
+    if (!g_mouseHandlers.contains(this)) {
+        g_mouseHandlers.append(this);
+    }
+    if (!g_mouseHook) {
+        g_mouseHook = SetWindowsHookExW(WH_MOUSE_LL, mouseHookProc,
+                                        GetModuleHandleW(nullptr), 0);
+        if (!g_mouseHook) {
+            qWarning() << "Could not install the guest mouse forwarding hook.";
         }
     }
 #endif
@@ -338,16 +394,6 @@ bool InputHandler::handleMouseEvent(QMouseEvent* event)
         return false;
     }
 
-#ifdef Q_OS_WIN
-    // Depending on the Windows compositor/DPI path, pointer messages over a
-    // reparented SDL child can be delivered either to SDL or to the native Qt
-    // parent. SDL handles the former itself; replay the latter as the original
-    // Win32 mouse message instead of converting physical input into QMP.
-    if (forwardNativeMouseEvent(event)) {
-        return true;
-    }
-#endif
-
     const QPoint position = event->position().toPoint();
     QJsonArray events{
         absoluteAxisEvent(QStringLiteral("x"), scaleToQmpAxis(position.x(), m_displayWidget->width())),
@@ -370,63 +416,6 @@ bool InputHandler::handleMouseEvent(QMouseEvent* event)
     }
 
     return sendInputEvents(events);
-}
-
-bool InputHandler::forwardNativeMouseEvent(QMouseEvent* event)
-{
-#ifdef Q_OS_WIN
-    auto* display = qobject_cast<DisplayEmbed*>(m_displayWidget.data());
-    if (!event || !display || !display->hasEmbeddedWindow()) {
-        return false;
-    }
-    const HWND guestWindow = reinterpret_cast<HWND>(display->embeddedWindow());
-    if (!IsWindow(guestWindow)) {
-        return false;
-    }
-
-    UINT message = WM_MOUSEMOVE;
-    switch (event->type()) {
-    case QEvent::MouseMove: break;
-    case QEvent::MouseButtonPress:
-        if (event->button() == Qt::LeftButton) message = WM_LBUTTONDOWN;
-        else if (event->button() == Qt::RightButton) message = WM_RBUTTONDOWN;
-        else if (event->button() == Qt::MiddleButton) message = WM_MBUTTONDOWN;
-        else return false;
-        break;
-    case QEvent::MouseButtonRelease:
-        if (event->button() == Qt::LeftButton) message = WM_LBUTTONUP;
-        else if (event->button() == Qt::RightButton) message = WM_RBUTTONUP;
-        else if (event->button() == Qt::MiddleButton) message = WM_MBUTTONUP;
-        else return false;
-        break;
-    default: return false;
-    }
-
-    const QPoint global = event->globalPosition().toPoint();
-    POINT clientPoint{global.x(), global.y()};
-    if (!ScreenToClient(guestWindow, &clientPoint)) {
-        return false;
-    }
-    WPARAM buttons = 0;
-    if (event->buttons().testFlag(Qt::LeftButton)) buttons |= MK_LBUTTON;
-    if (event->buttons().testFlag(Qt::RightButton)) buttons |= MK_RBUTTON;
-    if (event->buttons().testFlag(Qt::MiddleButton)) buttons |= MK_MBUTTON;
-    if (message == WM_LBUTTONDOWN || message == WM_RBUTTONDOWN || message == WM_MBUTTONDOWN) {
-        display->focusEmbeddedWindow();
-        SetCapture(guestWindow);
-    }
-    const LPARAM position = MAKELPARAM(static_cast<WORD>(clientPoint.x), static_cast<WORD>(clientPoint.y));
-    if (!PostMessageW(guestWindow, message, buttons, position)) {
-        return false;
-    }
-    if (message == WM_LBUTTONUP || message == WM_RBUTTONUP || message == WM_MBUTTONUP) {
-        ReleaseCapture();
-    }
-    return true;
-#else
-    Q_UNUSED(event)
-    return false;
-#endif
 }
 
 bool InputHandler::handleKeyEvent(QKeyEvent* event, const bool down)
@@ -530,11 +519,7 @@ bool InputHandler::dispatchNativeMouseEvent(const QPoint screenPosition,
                                             const bool move)
 {
 #ifdef Q_OS_WIN
-    // Mouse input is intentionally not intercepted globally. A real embedded
-    // SDL guest receives native pointer messages directly, which is more
-    // reliable than swallowing Windows input and replaying it via QMP.
-    // This entry point remains available for controlled automation/tests.
-    for (const QPointer<InputHandler>& handler : std::as_const(g_keyboardHandlers)) {
+    for (const QPointer<InputHandler>& handler : std::as_const(g_mouseHandlers)) {
         if (handler && handler->handleNativeMouseEvent(screenPosition, button, down, move)) {
             return true;
         }
@@ -586,18 +571,17 @@ bool InputHandler::isPointerOverEmbeddedDisplay(const QPoint screenPosition) con
     if (!display || !display->hasEmbeddedWindow()) {
         return false;
     }
-    // SDL/OpenGL can expose an internal child below the reparented QEMU HWND,
-    // making WindowFromPoint() unreliable. The native DisplayEmbed HWND is
-    // stable and covers only the Android viewport, never Sabi's controls.
-    const HWND displayWindow = reinterpret_cast<HWND>(display->winId());
-    if (!IsWindow(displayWindow)) {
+    const HWND guestWindow = reinterpret_cast<HWND>(display->embeddedWindow());
+    if (!IsWindow(guestWindow)) {
         return false;
     }
-    RECT displayRect{};
-    if (!GetWindowRect(displayWindow, &displayRect)) {
+    // The QEMU child is the actual letterboxed Android viewport; testing it
+    // excludes black margins and every Sabi control from the global hook.
+    RECT guestRect{};
+    if (!GetWindowRect(guestWindow, &guestRect)) {
         return false;
     }
-    return PtInRect(&displayRect, POINT{screenPosition.x(), screenPosition.y()});
+    return PtInRect(&guestRect, POINT{screenPosition.x(), screenPosition.y()});
 #else
     Q_UNUSED(screenPosition)
     return false;
