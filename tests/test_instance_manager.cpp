@@ -1,6 +1,7 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QProcess>
 #include <QTcpSocket>
@@ -122,10 +123,26 @@ int main(int argc, char** argv)
     edit = beta; edit["qmpPort"] = wildcard.localPort();
     check(!manager.setConfig("beta", edit), "reject shared wildcard listener port");
     check(manager.setConfig("beta", beta), "restore original ports after listener regression");
+    check(manager.setLabels("beta", {"games", "testing"}), "save short workspace labels");
+    check(manager.getConfig("beta").value("labels").toArray().size() == 2, "labels persist in instance config");
+    check(manager.applyResourceProfile("beta", "low")
+              && manager.getConfig("beta").value("cpuCores").toInt() == 1
+              && manager.getConfig("beta").value("ramMB").toInt() == 1024,
+          "low resource profile uses enforceable next-start limits");
+    check(manager.applyResourceProfile("beta", "balanced")
+              && manager.getConfig("beta").value("resourceProfile").toString() == "balanced",
+          "balanced resource profile persists an honest policy label");
+    QTemporaryDir exportRoot;
+    check(exportRoot.isValid() && manager.exportInstance("beta", exportRoot.path()), "export stopped overlay and config");
+    check(QFileInfo::exists(QDir(exportRoot.path()).filePath("beta/overlay.qcow2"))
+              && QFileInfo::exists(QDir(exportRoot.path()).filePath("beta/config.json")),
+          "export includes the stopped overlay and configuration");
     check(manager.factoryReset("beta"), "factory reset stopped disk");
     io.start(qemuIo, {"-f", "qcow2", "-c", "read -P 0x00 0 512", cloned});
     check(io.waitForFinished(30000) && io.exitCode() == 0, "reset clears guest data");
-    check(manager.deleteInstance("beta") && !QFileInfo::exists(cloned), "delete stopped instance");
+    check(manager.renameInstance("beta", "gamma") && manager.getConfig("gamma").value("name") == "gamma",
+          "rename stopped instance without changing its overlay contents");
+    check(manager.deleteInstance("gamma") && !QFileInfo::exists(manager.getInstanceDir("gamma")), "delete stopped instance");
     // Failed reset must leave the original disk intact.
     check(QFile::rename(base, base + ".hidden"), "hide test base");
     check(!manager.factoryReset("alpha") && QFileInfo::exists(overlay), "failed reset preserves original disk");

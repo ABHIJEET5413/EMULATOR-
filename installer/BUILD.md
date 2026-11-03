@@ -148,6 +148,19 @@ and supply them alongside binaries or fulfill source requests as applicable.
 See [Phase 6 checklist](../docs/PHASE-6-TESTING.md). A compiler run does not imply
 a clean-machine install or boot has passed.
 
+Before treating a Version 3 build as releasable, run the static readiness audit
+and complete the manual evidence ledger. The audit does not perform an install
+or replace a clean-PC acceptance run:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/test_release_readiness.ps1
+```
+
+Record actual hardware/installer outcomes in
+[V3-RELEASE-ACCEPTANCE.md](../docs/V3-RELEASE-ACCEPTANCE.md) and timings in
+[V3-PERFORMANCE-MATRIX.md](../docs/V3-PERFORMANCE-MATRIX.md). Do not change
+their **NOT RUN** states based only on a successful build.
+
 ```powershell
 # Elevated PowerShell after installation:
 powershell -NoProfile -ExecutionPolicy Bypass -File 'C:/Program Files/Sabi/check_whpx.ps1' -Probe

@@ -8,6 +8,9 @@ class InstanceManager;
 class MainWindow;
 class QTableWidget;
 class QThread;
+class QLineEdit;
+class QComboBox;
+class RuntimeRecovery;
 /** @file instance_list_window.h
  * Desktop launcher with asynchronous instance disk operations.
  */
@@ -15,7 +18,8 @@ class InstanceListWindow final : public QWidget {
     Q_OBJECT
 public:
     /** Create a launcher; manager must outlive this window. */
-    explicit InstanceListWindow(InstanceManager* manager, QWidget* parent = nullptr);
+    explicit InstanceListWindow(InstanceManager* manager, RuntimeRecovery* recovery = nullptr,
+                                QWidget* parent = nullptr);
     /** Join disk work and disconnect child callbacks before members are destroyed. */
     ~InstanceListWindow() override;
     /** Launch or focus a selected instance, optionally queueing an APK. */
@@ -26,10 +30,14 @@ protected:
 private:
     void refreshList();
     QString selectedName() const;
+    void arrangeOwnedWindows(bool cascade);
     void configure(const QString& name);
     void runOperation(const std::function<bool(InstanceManager&)>& operation);
     InstanceManager* m_manager;
+    RuntimeRecovery* m_recovery;
     QTableWidget* m_table;
+    QLineEdit* m_search{};
+    QComboBox *m_statusFilter{}, *m_sortMode{};
     QPointer<QThread> m_job;
     QHash<QString, QPointer<MainWindow>> m_windows;
 };

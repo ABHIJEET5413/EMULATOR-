@@ -14,6 +14,8 @@
 #include "instance_manager.h"
 #include "instance_list_window.h"
 #include "launch_channel.h"
+#include "runtime_recovery.h"
+#include "ui_theme.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -93,6 +95,9 @@ int main(int argc, char* argv[])
     else application = std::make_unique<QApplication>(argc, argv);
     QCoreApplication::setApplicationName(QStringLiteral("Sabi"));
     QCoreApplication::setOrganizationName(QStringLiteral("Sabi"));
+    if (!initializeOnly) {
+        UiTheme::install(*static_cast<QApplication*>(application.get()));
+    }
     qInstallMessageHandler(messageHandler);
 
     qInfo() << "Sabi desktop interface initialized.";
@@ -107,13 +112,17 @@ int main(int argc, char* argv[])
 
     const QString root = InstanceManager::findResourceRoot();
     InstanceManager manager(root, InstanceManager::defaultInstancesRoot(root));
+    RuntimeRecovery recovery(QDir(manager.instancesRoot()).filePath(QStringLiteral(".runtime")));
     const int selected = arguments.indexOf("--instance");
     const QString requestedInstance = selected >= 0 && selected + 1 < arguments.size()
         ? arguments.at(selected + 1) : QString{};
+    const bool safeMode = arguments.contains(QStringLiteral("--safe-mode"));
     const QJsonObject request{{"command", "launch"}, {"instance", requestedInstance},
-        {"apk", apkToInstall}, {"showInstances", arguments.contains("--instances")}};
+        {"apk", apkToInstall}, {"showInstances", arguments.contains("--instances") || safeMode}};
     LaunchChannel channel;
-    if (!initializeOnly) {
+    // Safe mode deliberately bypasses the forwarding channel: it must never ask a
+    // possibly unhealthy existing UI process to launch another VM.
+    if (!initializeOnly && !safeMode) {
         const auto role = channel.startOrForward(manager.instancesRoot(), request);
         if (role == LaunchChannel::Role::Forwarded) return 0;
         if (role == LaunchChannel::Role::Error) {
@@ -131,7 +140,20 @@ int main(int argc, char* argv[])
         return 1;
     }
     if (initializeOnly) { qInfo() << "Default instance is initialized."; return 0; }
-    InstanceListWindow window(&manager);
+    InstanceListWindow window(&manager, &recovery);
+    const QStringList staleSessions = recovery.staleSessions();
+    if (safeMode) {
+        qWarning() << "Sabi safe mode requested: VM auto-launch is disabled.";
+        QMessageBox::information(nullptr, QStringLiteral("Sabi safe mode"),
+                                 QStringLiteral("Safe mode opens the instance workspace without starting Android. "
+                                                "It does not modify instance disks or settings."));
+    } else if (!staleSessions.isEmpty()) {
+        QMessageBox::warning(nullptr, QStringLiteral("Previous VM session needs review"),
+                             QStringLiteral("Sabi did not observe a clean shutdown for: %1. "
+                                            "Their disks have not been changed. Review the instance before starting it; "
+                                            "use --safe-mode if you only want the workspace.")
+                                 .arg(staleSessions.join(QStringLiteral(", "))));
+    }
     const auto launch = [&window, &manager](const QJsonObject& incoming) {
         const auto instances = manager.listInstances();
         const QString instance = incoming.value("instance").toString();
@@ -150,6 +172,10 @@ int main(int argc, char* argv[])
         if (QApplication::topLevelWidgets().size() == 1) window.show();
     };
     QObject::connect(&channel, &LaunchChannel::requestReceived, &window, launch);
-    launch(request);
+    if (safeMode || !staleSessions.isEmpty()) {
+        window.show();
+    } else {
+        launch(request);
+    }
     return application->exec();
 }

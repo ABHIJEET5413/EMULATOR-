@@ -203,6 +203,7 @@ InputHandler::InputHandler(QObject* parent)
 
 InputHandler::~InputHandler()
 {
+    releaseHeldInput();
 #ifdef Q_OS_WIN
     g_keyboardHandlers.removeAll(this);
     if (g_keyboardHandlers.isEmpty() && g_keyboardHook) {
@@ -235,7 +236,7 @@ void InputHandler::installOn(QWidget* displayWidget, QemuController* controller)
             .filePath(QStringLiteral("resources/keymaps/default.json"));
         if (QFileInfo::exists(defaultProfile)) {
             QString errorMessage;
-            if (!m_keymapEngine.loadProfile(defaultProfile, &errorMessage)) {
+            if (!loadKeymapProfile(defaultProfile, &errorMessage)) {
                 qWarning().noquote() << "Could not load the default keymap profile:" << errorMessage;
             }
         } else {
@@ -271,7 +272,9 @@ void InputHandler::installOn(QWidget* displayWidget, QemuController* controller)
 
 bool InputHandler::loadKeymapProfile(const QString& path, QString* errorMessage)
 {
-    return m_keymapEngine.loadProfile(path, errorMessage);
+    if (!m_keymapEngine.loadProfile(path, errorMessage)) return false;
+    m_keymapProfilePath = path;
+    return true;
 }
 
 void InputHandler::setKeymapEnabled(const bool enabled)
@@ -284,6 +287,23 @@ bool InputHandler::isKeymapEnabled() const
     return m_keymapEngine.isEnabled();
 }
 
+std::optional<KeymapProfile> InputHandler::activeKeymapProfile() const
+{
+    return m_keymapEngine.activeProfile();
+}
+
+QString InputHandler::keymapProfilePath() const
+{
+    return m_keymapProfilePath;
+}
+
+void InputHandler::setKeymapEditing(const bool editing)
+{
+    if (m_keymapEditing == editing) return;
+    m_keymapEditing = editing;
+    if (editing) releaseAllInput();
+}
+
 void InputHandler::setGuestResolution(const QSize resolution)
 {
     m_keymapEngine.setGuestResolution(resolution);
@@ -291,12 +311,7 @@ void InputHandler::setGuestResolution(const QSize resolution)
 
 int InputHandler::scaleToQmpAxis(const int coordinate, const int extent)
 {
-    if (extent <= 1) {
-        return 0;
-    }
-
-    const int boundedCoordinate = qBound(0, coordinate, extent - 1);
-    return qRound(static_cast<qreal>(boundedCoordinate) * 32767.0 / (extent - 1));
+    return GuestViewport::mapClientToQmp({coordinate, 0}, {extent, 1}).x();
 }
 
 int InputHandler::keyCodeForQtKey(const int qtKey)
@@ -370,10 +385,14 @@ bool InputHandler::eventFilter(QObject* watched, QEvent* event)
         if (auto* display = qobject_cast<DisplayEmbed*>(m_displayWidget.data())) {
             display->focusEmbeddedWindow();
         }
+        m_guestFocused = true;
+        emit guestFocusChanged(true);
         return false;
     case QEvent::FocusOut:
         m_keymapEngine.releaseAll();
         releaseHeldInput();
+        m_guestFocused = false;
+        emit guestFocusChanged(false);
         return false;
     case QEvent::MouseButtonPress:
     case QEvent::MouseButtonRelease:
@@ -390,15 +409,18 @@ bool InputHandler::eventFilter(QObject* watched, QEvent* event)
 
 bool InputHandler::handleMouseEvent(QMouseEvent* event)
 {
-    if (!event || !m_displayWidget || !m_controller) {
+    if (m_keymapEditing || !event || !m_displayWidget || !m_controller) {
         return false;
     }
 
     const QPoint position = event->position().toPoint();
-    QJsonArray events{
-        absoluteAxisEvent(QStringLiteral("x"), scaleToQmpAxis(position.x(), m_displayWidget->width())),
-        absoluteAxisEvent(QStringLiteral("y"), scaleToQmpAxis(position.y(), m_displayWidget->height()))
-    };
+    const auto* display = qobject_cast<const DisplayEmbed*>(m_displayWidget.data());
+    if (!display || !display->viewport().containsLogical(position)) {
+        return false;
+    }
+    const QPoint qmpPoint = display->viewport().mapLogicalToQmp(position);
+    QJsonArray events{absoluteAxisEvent(QStringLiteral("x"), qmpPoint.x()),
+                      absoluteAxisEvent(QStringLiteral("y"), qmpPoint.y())};
 
     if (event->type() == QEvent::MouseButtonPress
         || event->type() == QEvent::MouseButtonRelease) {
@@ -415,12 +437,14 @@ bool InputHandler::handleMouseEvent(QMouseEvent* event)
         }
     }
 
-    return sendInputEvents(events);
+    const bool sent = sendInputEvents(events);
+    if (sent) emit pointerMapped(qmpPoint);
+    return sent;
 }
 
 bool InputHandler::handleKeyEvent(QKeyEvent* event, const bool down)
 {
-    if (!event) {
+    if (m_keymapEditing || !event) {
         return false;
     }
 
@@ -461,6 +485,7 @@ bool InputHandler::sendKeyToGuest(const Qt::Key key, const bool down)
 bool InputHandler::handleNativeKeyEvent(const int virtualKey, const bool down)
 {
 #ifdef Q_OS_WIN
+    if (m_keymapEditing) return false;
     const Qt::Key key = keyFromVirtualKey(static_cast<UINT>(virtualKey));
     if (key == Qt::Key_unknown) {
         return false;
@@ -594,6 +619,7 @@ bool InputHandler::handleNativeMouseEvent(const QPoint screenPosition,
                                           const bool move)
 {
 #ifdef Q_OS_WIN
+    if (m_keymapEditing) return false;
     auto* display = qobject_cast<DisplayEmbed*>(m_displayWidget.data());
     if (!display || !display->hasEmbeddedWindow()) {
         return false;
@@ -627,10 +653,10 @@ bool InputHandler::handleNativeMouseEvent(const QPoint screenPosition,
     }
     const int clientWidth = qMax(1, client.right - client.left);
     const int clientHeight = qMax(1, client.bottom - client.top);
-    QJsonArray events{
-        absoluteAxisEvent(QStringLiteral("x"), scaleToQmpAxis(position.x, clientWidth)),
-        absoluteAxisEvent(QStringLiteral("y"), scaleToQmpAxis(position.y, clientHeight))
-    };
+    const QPoint qmpPoint = GuestViewport::mapClientToQmp({position.x, position.y},
+                                                           {clientWidth, clientHeight});
+    QJsonArray events{absoluteAxisEvent(QStringLiteral("x"), qmpPoint.x()),
+                      absoluteAxisEvent(QStringLiteral("y"), qmpPoint.y())};
     if (!move && button != Qt::NoButton) {
         const QString qmpButton = qmpButtonName(button);
         if (qmpButton.isEmpty()) {
@@ -647,6 +673,7 @@ bool InputHandler::handleNativeMouseEvent(const QPoint screenPosition,
             m_pressedButtons.remove(static_cast<int>(button));
         }
     }
+    if (sent) emit pointerMapped(qmpPoint);
     return sent;
 #else
     Q_UNUSED(screenPosition)
@@ -698,6 +725,12 @@ void InputHandler::releaseHeldInput()
     m_pressedButtons.clear();
     m_pressedKeys.clear();
     sendInputEvents(events);
+}
+
+void InputHandler::releaseAllInput()
+{
+    m_keymapEngine.releaseAll();
+    releaseHeldInput();
 }
 
 bool InputHandler::sendInputEvents(const QJsonArray& events)

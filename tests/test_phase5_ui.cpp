@@ -44,11 +44,12 @@ bool waitUntil(const std::function<bool()>& condition)
 }
 QWidget* field(SettingsDialog& dialog, const QString& name)
 {
-    auto* form = dialog.findChild<QFormLayout*>();
-    for (int row = 0; row < form->rowCount(); ++row) {
-        const auto label = form->itemAt(row, QFormLayout::LabelRole);
-        auto* text = label ? qobject_cast<QLabel*>(label->widget()) : nullptr;
-        if (text && text->text() == name) return form->itemAt(row, QFormLayout::FieldRole)->widget();
+    for (auto* form : dialog.findChildren<QFormLayout*>()) {
+        for (int row = 0; row < form->rowCount(); ++row) {
+            const auto label = form->itemAt(row, QFormLayout::LabelRole);
+            auto* text = label ? qobject_cast<QLabel*>(label->widget()) : nullptr;
+            if (text && text->text() == name) return form->itemAt(row, QFormLayout::FieldRole)->widget();
+        }
     }
     return nullptr;
 }

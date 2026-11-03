@@ -40,6 +40,15 @@ public:
     /** Return whether key mapping is enabled. */
     bool isKeymapEnabled() const;
 
+    /** Return the loaded profile for editor previews, if any. */
+    std::optional<KeymapProfile> activeKeymapProfile() const;
+
+    /** Return the local source path for the active profile. */
+    QString keymapProfilePath() const;
+
+    /** Suspend guest forwarding while the visual editor owns placement input. */
+    void setKeymapEditing(bool editing);
+
     /** Set the guest resolution used to scale keymap coordinates. */
     void setGuestResolution(QSize resolution);
 
@@ -57,6 +66,15 @@ public:
 
     /** Map a Qt key to QMP's XT set-1 numeric key value. */
     static int keyCodeForQtKey(int qtKey);
+
+    /** Release every guest button/key held by this handler. */
+    void releaseAllInput();
+
+signals:
+    /** Report the most recent absolute QMP pointer coordinate for local diagnostics. */
+    void pointerMapped(QPoint qmpPoint);
+    /** Report whether the embedded guest is currently receiving focus. */
+    void guestFocusChanged(bool focused);
 
 protected:
     /** Observe display focus and provide a synthetic-event fallback. */
@@ -77,6 +95,9 @@ private:
     QPointer<QWidget> m_displayWidget;
     QPointer<QemuController> m_controller;
     KeymapEngine m_keymapEngine;
+    QString m_keymapProfilePath;
+    bool m_keymapEditing{false};
     QSet<int> m_pressedButtons;
     QSet<int> m_pressedKeys;
+    bool m_guestFocused{false};
 };

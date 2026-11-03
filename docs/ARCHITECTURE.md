@@ -44,6 +44,19 @@
 
 The main Windows application the user interacts with.
 
+#### Version 3 design system and shell (Phase 7)
+- `UiTheme` (`ui_theme.h/.cpp`) installs Sabi's dark native desktop palette,
+  focused `QProxyStyle`, keyboard focus treatment, and shared widget polish.
+  It avoids per-window theme drift while retaining standard Windows caption
+  controls and Qt's high-DPI behavior.
+- `IconFactory` (`icon_factory.h/.cpp`) loads original Sabi SVG assets bundled
+  through `resources/sabi_ui.qrc`. It supplies named icons for controls and
+  status rather than drawing unrelated raster icons in each window.
+- `MainWindow` has a compact context bar (Sabi, selected instance, Android
+  status), an aspect-correct guest viewport, and a grouped right control rail.
+  The display-profile selector is an accessible icon menu; each existing action
+  retains its established ADB/QMP behavior.
+
 #### Entry point and logging (Phase 1)
 - `src/main.cpp` creates the Qt Widgets application and instance launcher.
   Installer initialization uses `QCoreApplication` with `--initialize-only`.
@@ -136,6 +149,16 @@ The main Windows application the user interacts with.
   focus route created by cross-process Win32 reparenting.
   Touch coordinates are sent as QMP absolute axes and button events.
 
+#### Viewport and input quality (Phase 8)
+- `GuestViewport` (`guest_viewport.h/.cpp`) is the shared geometry authority for
+  logical Qt content, physical Win32 child placement, letterbox exclusion, and
+  QMP absolute coordinate conversion. It is pure and covered by a headless
+  regression harness at fractional DPI.
+- `InputDiagnosticsOverlay` is disabled by default and toggled with
+  `Ctrl+Shift+I`. It reports local geometry/focus/QMP state without accepting
+  focus or mouse events. `InputHandler` releases held input when focus is lost,
+  the VM stops, or the handler is destroyed.
+
 #### 1.6 `KeymapEngine` (Phase 3)
 - **What**: Maps physical keyboard keys to guest touch actions.
 - **Why**: Games and other apps can use keyboard keys for touch controls.
@@ -207,12 +230,50 @@ The main Windows application the user interacts with.
   creates a copy-on-write overlay per instance. Factory reset stages and
   validates a replacement before replacing the stopped instance's overlay.
 
-#### 1.10 `SettingsDialog` (Phase 5)
-- **What**: Per-instance settings (CPU cores, RAM, resolution, DPI).
-- **Why**: Different apps need different resources.
-- **How**: Edits are validated and saved through `InstanceManager` to
-  `instances/<name>/config.json`. CPU/RAM/display settings apply on restart;
-  Android resolution and DPI are also applied through ADB after boot.
+#### 1.10 `SettingsDialog` (Phases 5 and 9)
+- **What**: Per-instance settings grouped into General, Display, Performance,
+  Controls, Storage, Network/ADB, Advanced, and Diagnostics pages.
+- **Why**: Configuration must be understandable, safe, and explicit about
+  restart-required versus live Android display updates.
+- **How**: It validates local conflicts before `InstanceManager` validates and
+  writes `instances/<name>/config.json`. Defaults deliberately preserve the
+  instance identity, disk paths, and ports. Running instances lock port edits.
+  Unsupported test-pattern camera remains disabled; visual keymap editing is
+  honestly deferred rather than exposed as a non-working control.
+
+#### 1.11 `DiagnosticsService` (Phase 9)
+- **What**: Explicit local diagnostic summary/report helper.
+- **Why**: Support information is useful without silently collecting or
+  disclosing user data.
+- **How**: It opens only the local Sabi log directory and creates a
+  user-requested text report containing safe configuration metadata and base/
+  overlay filenames. It excludes host paths, ADB keys, APKs, guest files, and
+  log contents; it never uploads or sends telemetry.
+
+#### 1.12 Controls Studio (Phase 10)
+- **What**: A modeless local keymap editor, an editor-only Android viewport
+  marker layer, and an XInput detection-only probe.
+- **Why**: Users should be able to create and inspect mappings without editing
+  JSON by hand, without compromising the native embedded-display input route.
+- **How**: `KeymapEditorModel` keeps undoable validated profile state;
+  `KeymapStudioDialog` explicitly saves/imports/exports JSON profiles; and
+  `KeymapOverlay` maps profile-reference pixels through `GuestViewport`.
+  Placement mode releases held QMP input and disables forwarding until it ends.
+  `GamepadProbe` only detects XInput slots: it does not map any gamepad input
+  to Android or claim Raw Input/HID support.
+
+#### 1.13 Multi-Instance Workspace (Phase 11)
+- **What**: A searchable, sortable workspace around managed qcow2 instances,
+  plus stopped-instance rename/export, labels, health, and next-start resource
+  profiles.
+- **Why**: Several independent overlays need discoverable status and safe
+  operations without weakening their locking/ownership model.
+- **How**: `InstanceWorkspaceModel` provides pure filtering, sorting, and
+  health summaries. `InstanceManager` remains the single owner of locks and
+  disk changes; rename/export use stopped-instance locks, and destructive
+  actions stay confirmed. The workspace only pauses, stops, or arranges windows
+  it owns in this Sabi process. Balanced/Low resource profiles write actual
+  QEMU CPU/RAM next-start values; no FPS or eco claim is made.
 
 ---
 
@@ -409,10 +470,12 @@ Physical key → InputHandler → KeymapEngine
 - `InstanceListWindow` (`instance_list_window.h/.cpp`): launcher with create/start/stop/settings/clone/delete/reset,
   running-state refresh, confirmation before erasure, and disk work on a dedicated QThread.
   Each managed `MainWindow` has its own controller, ADB bridge, display, and input handler.
-- `SettingsDialog` (`settings_dialog.h/.cpp`): CPU/RAM sliders/spinboxes, per-instance Phone, Tablet,
-  PC, Fullscreen, and Custom display profiles, DPI, QMP/ADB ports, and optional USB VID/PID. Profile
-  dimensions/DPI are stored in the selected instance's `config.json`, restored on the next launch, and
-  applied through ADB when Android is ready. CPU/RAM and QEMU raster changes still require restart.
+- `SettingsDialog` (`settings_dialog.h/.cpp`): a page-based per-instance control center with display profile
+  cards, CPU/RAM limits, locked running-instance port fields, storage access, camera warnings, and restore
+  defaults that preserve disks/identity/ports. Profile dimensions/DPI are stored in `config.json`, restored
+  on launch, and applied through ADB when Android is ready; CPU/RAM and QEMU raster changes require restart.
+- `DiagnosticsService` (`diagnostics_service.h/.cpp`): opens the local log folder and generates only
+  explicitly requested redacted local reports. It has no telemetry, upload, or network service.
 - `MainWindow` exposes the main display profiles in the toolbar and has a Rotate action. It saves profile
   changes per instance, applies `wm size`/`wm density` live after boot, and saves rotation as Custom.
 - The Sabi host uses a compact dark icon toolbar with accessible action tooltips. Shared Folder is deliberately
@@ -446,6 +509,23 @@ Physical key → InputHandler → KeymapEngine
 Runtime storage is `instances/<name>/config.json` and `overlay.qcow2`, with locks in the instances root.
 Imported default overlays retain their original backing metadata; their config's baseImage specifies the reset base.
 Both top-level adbHostPort and network.adbHostPort are saved consistently for earlier controller/config consumers.
+
+## Phase 12 reliability and release-readiness modules
+
+- `RuntimeRecovery` (`runtime_recovery.h/.cpp`) writes atomically to a local
+  `.runtime` marker after QEMU's QMP handshake. A clean stop removes the marker;
+  a marker whose QEMU PID is no longer alive produces a non-destructive warning
+  at the next startup. `--safe-mode` bypasses launch forwarding and opens the
+  workspace without auto-starting a VM or changing an overlay.
+- `PerformanceMonitor` (`performance_monitor.h/.cpp`) captures local, per-VM
+  launch/QMP/Android-ready/exit milestones plus sampled QEMU working-set/CPU
+  and overlay-size values. It writes nothing unless the user selects **Save
+  runtime report**. Its report intentionally contains no host paths, guest
+  files, APKs, keys, logs, or network transport.
+- `test_runtime_recovery.cpp` covers marker lifecycle/stale detection and
+  report redaction with temporary paths. `test_release_readiness.ps1` is a
+  static audit only; it cannot establish installer, WHPX, guest, input, or
+  clean-PC acceptance. Those gates remain recorded in V3 release documents.
 
 ## Design Decisions Log
 

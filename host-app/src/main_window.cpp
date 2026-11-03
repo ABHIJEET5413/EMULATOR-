@@ -1,6 +1,6 @@
 #include <QAction>
+#include <QActionGroup>
 #include <QCloseEvent>
-#include <QComboBox>
 #include <QCoreApplication>
 #include <QDir>
 #include <QDragEnterEvent>
@@ -8,150 +8,127 @@
 #include <QFileInfo>
 #include <QFileDialog>
 #include <QGuiApplication>
+#include <QFrame>
+#include <QHBoxLayout>
 #include <QLabel>
+#include <QKeySequence>
+#include <QMenu>
 #include <QMimeData>
 #include <QMessageBox>
-#include <QPainter>
-#include <QPainterPath>
-#include <QPen>
 #include <QPixmap>
 #include <QStandardPaths>
 #include <QStatusBar>
 #include <QScreen>
 #include <QToolBar>
+#include <QToolButton>
 #include <QUrl>
+#include <QVBoxLayout>
 #include <QWidget>
 #include <QLoggingCategory>
 
 #include "display_embed.h"
+#include "icon_factory.h"
+#include "input_diagnostics_overlay.h"
+#include "keymap_overlay.h"
+#include "keymap_studio_dialog.h"
 #include "main_window.h"
 #include "instance_manager.h"
+#include "performance_monitor.h"
+#include "runtime_recovery.h"
 #include "settings_dialog.h"
+#include "ui_theme.h"
 
 #include <utility>
-
-namespace {
-
-enum class ToolbarIcon {
-    Home, Back, Recents, VolumeUp, VolumeDown, Power, Rotate, Screenshot,
-    Install, Fullscreen, Settings, Instances
-};
-
-QIcon makeToolbarIcon(const ToolbarIcon icon)
-{
-    QPixmap canvas(48, 48);
-    canvas.fill(Qt::transparent);
-    QPainter painter(&canvas);
-    painter.setRenderHint(QPainter::Antialiasing);
-    QPen pen(QColor(QStringLiteral("#dbeafe")), 2.7, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin);
-    painter.setPen(pen);
-    painter.setBrush(Qt::NoBrush);
-    const auto line = [&painter](const int x1, const int y1, const int x2, const int y2) {
-        painter.drawLine(x1, y1, x2, y2);
-    };
-    const auto rounded = [&painter](const QRectF& rectangle, const qreal radius = 3.0) {
-        painter.drawRoundedRect(rectangle, radius, radius);
-    };
-
-    switch (icon) {
-    case ToolbarIcon::Home:
-        line(10, 23, 24, 11); line(24, 11, 38, 23); rounded(QRectF(14, 22, 20, 15));
-        line(21, 37, 21, 29); line(27, 37, 27, 29); break;
-    case ToolbarIcon::Back:
-        line(28, 11, 16, 24); line(16, 24, 28, 37); line(17, 24, 39, 24); break;
-    case ToolbarIcon::Recents:
-        rounded(QRectF(13, 11, 22, 25)); rounded(QRectF(9, 16, 22, 21));
-        line(16, 22, 27, 22); line(16, 28, 25, 28); break;
-    case ToolbarIcon::VolumeUp:
-    case ToolbarIcon::VolumeDown:
-        painter.setBrush(QColor(QStringLiteral("#dbeafe")));
-        painter.drawPolygon(QPolygonF{{10, 21}, {16, 21}, {25, 14}, {25, 34}, {16, 27}, {10, 27}});
-        painter.setBrush(Qt::NoBrush);
-        if (icon == ToolbarIcon::VolumeUp) { line(34, 19, 34, 29); line(29, 24, 39, 24); }
-        else line(29, 24, 39, 24);
-        break;
-    case ToolbarIcon::Power:
-        painter.drawArc(QRectF(12, 12, 24, 24), 45 * 16, 270 * 16); line(24, 8, 24, 23); break;
-    case ToolbarIcon::Rotate:
-        painter.drawArc(QRectF(11, 11, 26, 26), 35 * 16, 270 * 16);
-        line(34, 10, 38, 17); line(38, 17, 31, 18); break;
-    case ToolbarIcon::Screenshot:
-        rounded(QRectF(9, 15, 30, 21)); rounded(QRectF(17, 11, 10, 5), 1.5);
-        painter.drawEllipse(QRectF(19, 19, 10, 10)); break;
-    case ToolbarIcon::Install:
-        rounded(QRectF(11, 12, 26, 25)); line(24, 16, 24, 29); line(19, 24, 24, 29); line(29, 24, 24, 29);
-        line(16, 39, 32, 39); break;
-    case ToolbarIcon::Fullscreen:
-        line(11, 20, 11, 11); line(11, 11, 20, 11); line(28, 11, 37, 11); line(37, 11, 37, 20);
-        line(37, 28, 37, 37); line(37, 37, 28, 37); line(20, 37, 11, 37); line(11, 37, 11, 28); break;
-    case ToolbarIcon::Settings:
-        painter.drawEllipse(QRectF(17, 17, 14, 14)); painter.drawEllipse(QRectF(21, 21, 6, 6));
-        for (const QPointF& point : {QPointF(24, 9), QPointF(24, 39), QPointF(9, 24), QPointF(39, 24),
-                                    QPointF(13.4, 13.4), QPointF(34.6, 34.6), QPointF(34.6, 13.4), QPointF(13.4, 34.6)}) {
-            painter.drawPoint(point);
-        }
-        break;
-    case ToolbarIcon::Instances:
-        painter.drawEllipse(QRectF(12, 12, 10, 10)); painter.drawEllipse(QRectF(27, 15, 8, 8));
-        painter.drawArc(QRectF(8, 21, 18, 15), 30 * 16, 120 * 16);
-        painter.drawArc(QRectF(24, 23, 14, 12), 30 * 16, 120 * 16); break;
-    }
-    return QIcon(canvas);
-}
-
-} // namespace
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
 {
+    UiTheme::polishWindow(this, QStringLiteral("sabiMainWindow"));
     setWindowTitle(QStringLiteral("Sabi"));
     setMinimumSize(480, 700);
-    setStyleSheet(QStringLiteral(
-        "QMainWindow { background: #171a21; color: #edf2f7; }"
-        "QToolBar { background: #111827; border: 0; border-left: 1px solid #334155; spacing: 6px; padding: 9px 7px; }"
-        "QToolBar::separator { height: 1px; background: #334155; margin: 5px 3px; }"
-        "QToolButton { background: transparent; border: 1px solid transparent; border-radius: 10px; padding: 8px; min-width: 36px; min-height: 36px; }"
-        "QToolButton:hover { background: #1e3a5f; border-color: #315b8f; }"
-        "QToolButton:pressed { background: #2563eb; }"
-        "QToolButton:disabled { opacity: 0.35; }"
-        "QComboBox { background: #1e293b; border: 1px solid #475569; border-radius: 8px; padding: 6px; min-width: 94px; }"
-        "QStatusBar { background: #202633; color: #cbd5e1; }"));
     // Leave enough horizontal room for Android's first-run authorization
     // dialogs beside the vertical toolbar, even on a 1280px-wide desktop.
     resize(900, 850);
     setAcceptDrops(true);
 
-    m_displayEmbed = new DisplayEmbed(this);
-    setCentralWidget(m_displayEmbed);
+    auto* shell = new QWidget(this);
+    shell->setObjectName(QStringLiteral("sabiShell"));
+    auto* shellLayout = new QVBoxLayout(shell);
+    shellLayout->setContentsMargins(0, 0, 0, 0);
+    shellLayout->setSpacing(0);
+    createContextBar();
+    m_displayEmbed = new DisplayEmbed(shell);
+    shellLayout->addWidget(m_displayEmbed, 1);
+    setCentralWidget(shell);
     m_inputHandler.installOn(m_displayEmbed, &m_qemuController);
+    m_inputDiagnosticsOverlay = new InputDiagnosticsOverlay(m_displayEmbed);
+    m_keymapOverlay = new KeymapOverlay(m_displayEmbed);
+    connect(m_displayEmbed, &DisplayEmbed::viewportChanged,
+            this, &MainWindow::refreshInputDiagnostics);
+    connect(&m_inputHandler, &InputHandler::pointerMapped, this, [this](const QPoint point) {
+        m_lastQmpPointer = point;
+        refreshInputDiagnostics();
+    });
+    connect(&m_inputHandler, &InputHandler::guestFocusChanged, this, [this](const bool focused) {
+        m_guestInputFocused = focused;
+        refreshInputDiagnostics();
+    });
 
     createToolbar();
 
     m_statusLabel = new QLabel(QStringLiteral("Sabi • Starting"), this);
+    statusBar()->setObjectName(QStringLiteral("sabiStatusBar"));
     statusBar()->addPermanentWidget(m_statusLabel);
+    setStatusText(QStringLiteral("Starting"));
     setAdbActionsEnabled(false);
 
     m_windowSearchTimer.setInterval(500);
     m_windowSearchTimeout.setSingleShot(true);
     m_closeWaitTimer.setSingleShot(true);
+    m_performanceSampleTimer.setInterval(5000);
 
     connect(&m_qemuController, &QemuController::vmStarted,
             this, &MainWindow::beginDisplayWindowSearch);
     connect(&m_qemuController, &QemuController::vmStarted,
             this, [this]() {
-                m_statusLabel->setText(QStringLiteral("Status: Connecting to Android"));
+                const QString name = m_instanceName.isEmpty() ? QStringLiteral("default") : m_instanceName;
+                m_performanceMonitor.attachProcess(m_qemuController.processId());
+                m_performanceMonitor.markQmpReady();
+                m_performanceSampleTimer.start();
+                if (m_recovery) {
+                    QString errorMessage;
+                    if (!m_recovery->beginSession(name, m_qemuController.processId(), &errorMessage)) {
+                        qWarning().noquote() << errorMessage;
+                    }
+                }
+            });
+    connect(&m_qemuController, &QemuController::vmStarted,
+            this, [this]() {
+                setStatusText(QStringLiteral("Connecting to Android"));
                 m_adbBridge.connectToGuest(QStringLiteral("localhost"), m_qemuController.adbHostPort());
             });
     connect(&m_qemuController, &QemuController::vmStopped,
             this, [this](const int exitCode) {
-                Q_UNUSED(exitCode)
+                m_performanceSampleTimer.stop();
+                m_performanceMonitor.finish(exitCode);
+                if (m_recovery) {
+                    const QString name = m_instanceName.isEmpty() ? QStringLiteral("default") : m_instanceName;
+                    QString errorMessage;
+                    // Non-zero exits leave the marker so the next start can explain
+                    // that the last VM process was not known to stop cleanly.
+                    if ((exitCode == 0 || m_closePending)
+                        && !m_recovery->completeSession(name, &errorMessage)) {
+                        qWarning().noquote() << errorMessage;
+                    }
+                }
                 if (m_instanceManager) m_instanceManager->releaseInstance(m_instanceName);
                 m_windowSearchTimer.stop();
                 m_windowSearchTimeout.stop();
                 m_adbBridge.disconnectFromGuest();
                 setAdbActionsEnabled(false);
+                m_inputHandler.releaseAllInput();
                 m_displayEmbed->clearEmbeddedWindow();
-                m_statusLabel->setText(QStringLiteral("Status: Stopped"));
+                setStatusText(QStringLiteral("Stopped"));
                 if (m_closePending) {
                     m_closeWaitTimer.stop();
                     m_allowClose = true;
@@ -162,23 +139,24 @@ MainWindow::MainWindow(QWidget* parent)
             this, &MainWindow::handleVmError);
     connect(&m_adbBridge, &AdbBridge::connected, this,
             [this](const QString& serial) {
-                m_statusLabel->setText(QStringLiteral("Status: Connected (%1), booting...").arg(serial));
+                setStatusText(QStringLiteral("Connected (%1), booting...").arg(serial));
             });
     connect(&m_adbBridge, &AdbBridge::authorizationRequired, this,
             [this](const QString& serial) {
                 Q_UNUSED(serial)
                 setAdbActionsEnabled(false);
-                m_statusLabel->setText(QStringLiteral("Status: Select Allow in Android's USB debugging prompt"));
+                setStatusText(QStringLiteral("Allow USB debugging in Android"), true);
             });
     connect(&m_adbBridge, &AdbBridge::disconnected, this, [this]() {
         setAdbActionsEnabled(false);
         if (m_qemuController.isRunning()) {
-            m_statusLabel->setText(QStringLiteral("Status: Reconnecting to Android"));
+            setStatusText(QStringLiteral("Reconnecting to Android"), true);
         }
     });
     connect(&m_adbBridge, &AdbBridge::bootCompleted, this, [this]() {
+        m_performanceMonitor.markAndroidReady();
         applyLiveDisplaySettings();
-        m_statusLabel->setText(QStringLiteral("Status: Ready"));
+        setStatusText(QStringLiteral("Ready"));
         setAdbActionsEnabled(true);
         installPendingApk();
     });
@@ -214,7 +192,7 @@ MainWindow::MainWindow(QWidget* parent)
             this, [this]() {
                 m_windowSearchTimer.stop();
                 if (!m_displayEmbed->hasEmbeddedWindow() && m_qemuController.isRunning()) {
-                    m_statusLabel->setText(QStringLiteral("Status: Running (display not embedded)"));
+                    setStatusText(QStringLiteral("Running (display not embedded)"), true);
                     QMessageBox::warning(
                         this,
                         QStringLiteral("QEMU display not found"),
@@ -224,15 +202,19 @@ MainWindow::MainWindow(QWidget* parent)
             });
     connect(&m_closeWaitTimer, &QTimer::timeout,
             this, &MainWindow::handleCloseWaitTimeout);
+    connect(&m_performanceSampleTimer, &QTimer::timeout,
+            this, [this] { m_performanceMonitor.sample(); });
 
     QTimer::singleShot(0, this, &MainWindow::startVm);
 }
 
-MainWindow::MainWindow(InstanceManager* manager, const QString& name, QWidget* parent)
+MainWindow::MainWindow(InstanceManager* manager, const QString& name,
+                       RuntimeRecovery* recovery, QWidget* parent)
     : MainWindow(parent)
 {
-    m_instanceManager = manager; m_instanceName = name;
+    m_instanceManager = manager; m_instanceName = name; m_recovery = recovery;
     setWindowTitle("Sabi - " + name);
+    if (m_instanceLabel) m_instanceLabel->setText(name);
 }
 
 MainWindow::~MainWindow()
@@ -245,35 +227,118 @@ MainWindow::~MainWindow()
         m_instanceManager->releaseInstance(m_instanceName);
 }
 
+bool MainWindow::togglePauseResume()
+{
+    if (!m_qemuController.isRunning()) return false;
+    const bool paused = isVmPaused();
+    const QString request = paused ? m_qemuController.resume() : m_qemuController.pause();
+    if (request.isEmpty()) return false;
+    setStatusText(paused ? QStringLiteral("Resuming") : QStringLiteral("Pausing"));
+    return true;
+}
+
+bool MainWindow::isVmPaused() const
+{
+    return m_qemuController.getStatus() == QStringLiteral("paused");
+}
+
+void MainWindow::createContextBar()
+{
+    auto* bar = new QFrame(this);
+    bar->setObjectName(QStringLiteral("sabiContextBar"));
+    auto* layout = new QHBoxLayout(bar);
+    layout->setContentsMargins(14, 8, 14, 8);
+    layout->setSpacing(9);
+
+    auto* mark = new QLabel(bar);
+    mark->setPixmap(IconFactory::icon(SabiIcon::Mark).pixmap(28, 28));
+    mark->setAccessibleName(QStringLiteral("Sabi"));
+    auto* wordmark = new QLabel(QStringLiteral("SABI"), bar);
+    wordmark->setObjectName(QStringLiteral("sabiWordmark"));
+    m_instanceLabel = new QLabel(QStringLiteral("default"), bar);
+    m_instanceLabel->setObjectName(QStringLiteral("sabiInstanceName"));
+    m_instanceLabel->setAccessibleName(QStringLiteral("Active instance"));
+    m_contextStatusIcon = new QLabel(bar);
+    m_contextStatusIcon->setAccessibleName(QStringLiteral("Android status"));
+    m_contextStatusLabel = new QLabel(bar);
+    m_contextStatusLabel->setObjectName(QStringLiteral("sabiContextStatus"));
+
+    layout->addWidget(mark);
+    layout->addWidget(wordmark);
+    layout->addSpacing(8);
+    layout->addWidget(m_instanceLabel);
+    layout->addStretch(1);
+    layout->addWidget(m_contextStatusIcon);
+    layout->addWidget(m_contextStatusLabel);
+    // The central shell is built immediately before this method is called.
+    auto* shell = findChild<QWidget*>(QStringLiteral("sabiShell"));
+    if (shell && shell->layout()) {
+        shell->layout()->addWidget(bar);
+    }
+}
+
+void MainWindow::setStatusText(const QString& text, const bool warning)
+{
+    const bool ready = text == QStringLiteral("Ready");
+    if (m_statusLabel) m_statusLabel->setText(QStringLiteral("Status: %1").arg(text));
+    if (m_contextStatusLabel) m_contextStatusLabel->setText(text);
+    if (m_contextStatusIcon) {
+        const SabiIcon icon = (ready || !warning) ? SabiIcon::StatusReady : SabiIcon::StatusWarning;
+        m_contextStatusIcon->setPixmap(IconFactory::icon(icon).pixmap(16, 16));
+    }
+}
+
+void MainWindow::updateDisplayProfileUi(const QString& profile)
+{
+    for (auto it = m_displayProfileActions.cbegin(); it != m_displayProfileActions.cend(); ++it) {
+        it.value()->setChecked(it.key() == profile);
+    }
+    if (!m_displayProfileButton) return;
+    const SabiIcon icon = profile == QStringLiteral("tablet") ? SabiIcon::Tablet
+        : profile == QStringLiteral("pc") || profile == QStringLiteral("fullscreen") ? SabiIcon::Desktop
+        : SabiIcon::Phone;
+    m_displayProfileButton->setIcon(IconFactory::icon(icon));
+    m_displayProfileButton->setToolTip(QStringLiteral("Display profile: %1").arg(profile));
+}
+
+void MainWindow::refreshInputDiagnostics()
+{
+    if (m_inputDiagnosticsOverlay && m_displayEmbed) {
+        m_inputDiagnosticsOverlay->setDiagnostics(m_displayEmbed->viewport(),
+                                                  m_lastQmpPointer, m_guestInputFocused);
+    }
+}
+
 void MainWindow::createToolbar()
 {
-    auto* toolbar = new QToolBar(QStringLiteral("Controls"), this);
+    auto* toolbar = new QToolBar(QStringLiteral("Android controls"), this);
+    toolbar->setObjectName(QStringLiteral("sabiToolRail"));
+    toolbar->setAccessibleName(QStringLiteral("Sabi Android controls"));
     toolbar->setOrientation(Qt::Vertical);
     toolbar->setMovable(false);
     toolbar->setFloatable(false);
     toolbar->setToolButtonStyle(Qt::ToolButtonIconOnly);
-    toolbar->setIconSize(QSize(22, 22));
-    toolbar->setMinimumWidth(52);
+    toolbar->setIconSize(QSize(21, 21));
+    toolbar->setMinimumWidth(56);
 
-    const auto addKeyAction = [this, toolbar](const QString& label, const int keycode, const ToolbarIcon icon) {
-        QAction* action = toolbar->addAction(label);
-        action->setIcon(makeToolbarIcon(icon)); action->setToolTip(label);
+    const auto addKeyAction = [this, toolbar](const QString& label, const int keycode, const SabiIcon icon) {
+        QAction* action = toolbar->addAction(IconFactory::icon(icon), label);
+        action->setToolTip(label);
         m_adbActions.append(action);
-        connect(action, &QAction::triggered, this, [this, keycode]() {
-            m_adbBridge.sendKeyEvent(keycode);
-        });
+        connect(action, &QAction::triggered, this, [this, keycode] { m_adbBridge.sendKeyEvent(keycode); });
     };
 
-    addKeyAction(QStringLiteral("Home"), 3, ToolbarIcon::Home);
-    addKeyAction(QStringLiteral("Back"), 4, ToolbarIcon::Back);
-    addKeyAction(QStringLiteral("Recents"), 187, ToolbarIcon::Recents);
+    addKeyAction(QStringLiteral("Home"), 3, SabiIcon::Home);
+    addKeyAction(QStringLiteral("Back"), 4, SabiIcon::Back);
+    addKeyAction(QStringLiteral("Recents"), 187, SabiIcon::Recents);
     toolbar->addSeparator();
-    addKeyAction(QStringLiteral("Volume +"), 24, ToolbarIcon::VolumeUp);
-    addKeyAction(QStringLiteral("Volume -"), 25, ToolbarIcon::VolumeDown);
-    addKeyAction(QStringLiteral("Power"), 26, ToolbarIcon::Power);
+    addKeyAction(QStringLiteral("Volume up"), 24, SabiIcon::VolumeUp);
+    addKeyAction(QStringLiteral("Volume down"), 25, SabiIcon::VolumeDown);
+    addKeyAction(QStringLiteral("Power"), 26, SabiIcon::Power);
     toolbar->addSeparator();
-    QAction* rotateAction = toolbar->addAction(QStringLiteral("Rotate"));
-    rotateAction->setIcon(makeToolbarIcon(ToolbarIcon::Rotate)); rotateAction->setToolTip(QStringLiteral("Rotate"));
+
+    QAction* rotateAction = toolbar->addAction(IconFactory::icon(SabiIcon::Rotate), QStringLiteral("Rotate"));
+    rotateAction->setToolTip(QStringLiteral("Rotate display"));
     connect(rotateAction, &QAction::triggered, this, [this] {
         if (!m_instanceManager || m_instanceName.isEmpty()) return;
         auto config = m_instanceManager->getConfig(m_instanceName);
@@ -281,73 +346,98 @@ void MainWindow::createToolbar()
         const int width = display.value("width").toInt();
         const int height = display.value("height").toInt();
         if (width < 1 || height < 1) return;
-        display["width"] = height;
-        display["height"] = width;
-        display["profile"] = QStringLiteral("custom");
+        display["width"] = height; display["height"] = width; display["profile"] = QStringLiteral("custom");
         config["display"] = display;
         if (!m_instanceManager->setConfig(m_instanceName, config)) {
             QMessageBox::warning(this, QStringLiteral("Rotation not saved"), m_instanceManager->lastError());
             return;
         }
         m_launchConfig = config;
-        if (m_displayProfile) m_displayProfile->setCurrentIndex(-1);
+        updateDisplayProfileUi(QStringLiteral("custom"));
         applyLiveDisplaySettings();
     });
-    QAction* screenshotAction = toolbar->addAction(QStringLiteral("Screenshot"));
-    screenshotAction->setIcon(makeToolbarIcon(ToolbarIcon::Screenshot)); screenshotAction->setToolTip(QStringLiteral("Screenshot"));
+    QAction* screenshotAction = toolbar->addAction(IconFactory::icon(SabiIcon::Screenshot), QStringLiteral("Screenshot"));
+    screenshotAction->setToolTip(QStringLiteral("Save Android screenshot"));
     m_adbActions.append(screenshotAction);
     connect(screenshotAction, &QAction::triggered, this, &MainWindow::saveScreenshot);
-    QAction* installAction = toolbar->addAction(QStringLiteral("Install APK"));
-    installAction->setIcon(makeToolbarIcon(ToolbarIcon::Install)); installAction->setToolTip(QStringLiteral("Install APK"));
+    QAction* installAction = toolbar->addAction(IconFactory::icon(SabiIcon::InstallApk), QStringLiteral("Install APK"));
+    installAction->setToolTip(QStringLiteral("Install APK"));
     m_adbActions.append(installAction);
     connect(installAction, &QAction::triggered, this, &MainWindow::installSelectedApk);
     toolbar->addSeparator();
 
-    m_fullscreenAction = toolbar->addAction(QStringLiteral("Fullscreen"));
-    m_fullscreenAction->setIcon(makeToolbarIcon(ToolbarIcon::Fullscreen)); m_fullscreenAction->setToolTip(QStringLiteral("Fullscreen"));
+    m_fullscreenAction = toolbar->addAction(IconFactory::icon(SabiIcon::Fullscreen), QStringLiteral("Fullscreen"));
+    m_fullscreenAction->setToolTip(QStringLiteral("Toggle fullscreen"));
     m_fullscreenAction->setCheckable(true);
-    connect(m_fullscreenAction, &QAction::triggered,
-            this, [this](const bool enabled) {
-                if (enabled) {
-                    showFullScreen();
-                } else {
-                    showNormal();
-                }
-            });
-
-    toolbar->addSeparator();
-    m_displayProfile = new QComboBox(toolbar);
-    m_displayProfile->setToolTip(QStringLiteral("Display profile; applies immediately to Android and persists for this instance."));
-    m_displayProfile->addItem(QStringLiteral("Phone"), QStringLiteral("phone"));
-    m_displayProfile->addItem(QStringLiteral("Tablet"), QStringLiteral("tablet"));
-    m_displayProfile->addItem(QStringLiteral("PC"), QStringLiteral("pc"));
-    m_displayProfile->addItem(QStringLiteral("Fullscreen"), QStringLiteral("fullscreen"));
-    toolbar->addWidget(m_displayProfile);
-    connect(m_displayProfile, &QComboBox::currentIndexChanged, this, [this] {
-        if (m_displayProfile) applyDisplayProfile(m_displayProfile->currentData().toString());
+    connect(m_fullscreenAction, &QAction::triggered, this, [this](const bool enabled) {
+        if (enabled) showFullScreen(); else showNormal();
     });
 
+    QAction* diagnosticsAction = toolbar->addAction(
+        IconFactory::icon(SabiIcon::InputDiagnostics), QStringLiteral("Input diagnostics"));
+    diagnosticsAction->setToolTip(QStringLiteral("Toggle input diagnostics (Ctrl+Shift+I)"));
+    diagnosticsAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+I")));
+    diagnosticsAction->setCheckable(true);
+    connect(diagnosticsAction, &QAction::toggled, this, [this](const bool enabled) {
+        if (!m_inputDiagnosticsOverlay) return;
+        m_inputDiagnosticsOverlay->setVisible(enabled);
+        if (enabled) refreshInputDiagnostics();
+    });
+
+    QAction* runtimeReportAction = toolbar->addAction(
+        IconFactory::icon(SabiIcon::InputDiagnostics), QStringLiteral("Save runtime report"));
+    runtimeReportAction->setToolTip(QStringLiteral("Save a local, redacted runtime measurement"));
+    connect(runtimeReportAction, &QAction::triggered, this, &MainWindow::saveRuntimeReport);
+
+    QAction* controlsAction = toolbar->addAction(IconFactory::icon(SabiIcon::ControlsStudio), QStringLiteral("Controls Studio"));
+    controlsAction->setToolTip(QStringLiteral("Create and edit local keyboard mappings"));
+    controlsAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+K")));
+    connect(controlsAction, &QAction::triggered, this, &MainWindow::openControlsStudio);
+
     toolbar->addSeparator();
-    QAction* settings = toolbar->addAction(QStringLiteral("Settings"));
-    settings->setIcon(makeToolbarIcon(ToolbarIcon::Settings)); settings->setToolTip(QStringLiteral("Instance Settings"));
+    auto* profiles = new QMenu(toolbar);
+    auto* profileGroup = new QActionGroup(profiles);
+    profileGroup->setExclusive(true);
+    const auto addProfile = [this, profiles, profileGroup](const QString& label, const QString& profile, const SabiIcon icon) {
+        QAction* action = profiles->addAction(IconFactory::icon(icon), label);
+        action->setCheckable(true);
+        action->setData(profile);
+        action->setToolTip(QStringLiteral("Apply %1 display profile").arg(label));
+        profileGroup->addAction(action);
+        m_displayProfileActions.insert(profile, action);
+        connect(action, &QAction::triggered, this, [this, profile] { applyDisplayProfile(profile); });
+    };
+    addProfile(QStringLiteral("Phone"), QStringLiteral("phone"), SabiIcon::Phone);
+    addProfile(QStringLiteral("Tablet"), QStringLiteral("tablet"), SabiIcon::Tablet);
+    addProfile(QStringLiteral("Desktop"), QStringLiteral("pc"), SabiIcon::Desktop);
+    addProfile(QStringLiteral("Fullscreen display"), QStringLiteral("fullscreen"), SabiIcon::Desktop);
+    m_displayProfileButton = new QToolButton(toolbar);
+    m_displayProfileButton->setObjectName(QStringLiteral("sabiProfileButton"));
+    m_displayProfileButton->setMenu(profiles);
+    m_displayProfileButton->setPopupMode(QToolButton::InstantPopup);
+    m_displayProfileButton->setAccessibleName(QStringLiteral("Display profile"));
+    toolbar->addWidget(m_displayProfileButton);
+    updateDisplayProfileUi(QStringLiteral("phone"));
+
+    toolbar->addSeparator();
+    QAction* settings = toolbar->addAction(IconFactory::icon(SabiIcon::Settings), QStringLiteral("Settings"));
+    settings->setToolTip(QStringLiteral("Instance settings"));
     connect(settings, &QAction::triggered, this, [this] {
         if (!m_instanceManager) return;
         SettingsDialog dialog(m_instanceManager->getConfig(m_instanceName), m_instanceManager->isRunning(m_instanceName), this);
         while (dialog.exec() == QDialog::Accepted) {
             if (m_instanceManager->setConfig(m_instanceName, dialog.getConfig())) {
                 m_launchConfig = dialog.getConfig();
-                const auto display = m_launchConfig.value("display").toObject();
-                if (m_displayProfile) m_displayProfile->setCurrentIndex(m_displayProfile->findData(display.value("profile").toString()));
+                updateDisplayProfileUi(m_launchConfig.value("display").toObject().value("profile").toString("custom"));
                 applyLiveDisplaySettings();
                 break;
             }
-            QMessageBox::warning(this, "Settings not saved", m_instanceManager->lastError());
+            QMessageBox::warning(this, QStringLiteral("Settings not saved"), m_instanceManager->lastError());
         }
     });
-    QAction* instancesAction = toolbar->addAction(QStringLiteral("Instances"));
-    instancesAction->setIcon(makeToolbarIcon(ToolbarIcon::Instances)); instancesAction->setToolTip(QStringLiteral("Instances"));
-    connect(instancesAction, &QAction::triggered,
-            this, &MainWindow::instanceListRequested);
+    QAction* instancesAction = toolbar->addAction(IconFactory::icon(SabiIcon::Instances), QStringLiteral("Instances"));
+    instancesAction->setToolTip(QStringLiteral("Manage instances"));
+    connect(instancesAction, &QAction::triggered, this, &MainWindow::instanceListRequested);
     addToolBar(Qt::RightToolBarArea, toolbar);
 }
 
@@ -379,14 +469,19 @@ void MainWindow::startVm()
         // A preserved config can name the previous installation directory.
         // Use the manager's current runtime path when loading the disk config.
         m_qemuController.setQemuPath(m_launchConfig.value("qemuPath").toString());
-        if (m_displayProfile) {
-            const QString profile = m_launchConfig.value("display").toObject().value("profile").toString("custom");
-            const int index = m_displayProfile->findData(profile);
-            if (index >= 0) m_displayProfile->setCurrentIndex(index);
+        updateDisplayProfileUi(m_launchConfig.value("display").toObject().value("profile").toString("custom"));
+    }
+    m_performanceMonitor.beginLaunch(m_instanceName.isEmpty() ? QStringLiteral("default") : m_instanceName,
+                                     m_launchConfig.value(QStringLiteral("overlayImage")).toString());
+    const QString savedKeymap = m_launchConfig.value(QStringLiteral("keymapProfile")).toString();
+    if (!savedKeymap.isEmpty() && QFileInfo::exists(savedKeymap)) {
+        QString errorMessage;
+        if (!m_inputHandler.loadKeymapProfile(savedKeymap, &errorMessage)) {
+            qWarning().noquote() << "Could not load this instance's keymap:" << errorMessage;
         }
     }
     if (configPath.isEmpty()) {
-        m_statusLabel->setText(QStringLiteral("Status: Configuration missing"));
+        setStatusText(QStringLiteral("Configuration missing"), true);
         QMessageBox::critical(
             this,
             QStringLiteral("VM configuration not found"),
@@ -404,11 +499,63 @@ void MainWindow::startVm()
         resizeForGuestDisplay(guestResolution);
     }
 
-    m_statusLabel->setText(QStringLiteral("Status: Starting VM"));
+    setStatusText(QStringLiteral("Starting VM"));
     if (!m_qemuController.start(configPath)) {
         if (m_instanceManager) m_instanceManager->releaseInstance(m_instanceName);
-        m_statusLabel->setText(QStringLiteral("Status: VM failed to start"));
+        setStatusText(QStringLiteral("VM failed to start"), true);
     }
+}
+
+void MainWindow::openControlsStudio()
+{
+    if (m_keymapStudio) {
+        m_keymapStudio->raise();
+        m_keymapStudio->activateWindow();
+        return;
+    }
+    const auto activeProfile = m_inputHandler.activeKeymapProfile();
+    if (!activeProfile) {
+        QMessageBox::warning(this, QStringLiteral("Controls Studio unavailable"),
+                             QStringLiteral("Sabi could not load a keymap profile. Restart Sabi and try again."));
+        return;
+    }
+    const QString storedPath = m_launchConfig.value(QStringLiteral("keymapProfile")).toString();
+    const QString editablePath = QFileInfo::exists(storedPath) ? storedPath : QString{};
+    auto* studio = new KeymapStudioDialog(*activeProfile, editablePath, this);
+    m_keymapStudio = studio;
+    connect(studio, &KeymapStudioDialog::workingProfileChanged, m_keymapOverlay, &KeymapOverlay::setProfile);
+    connect(studio, &KeymapStudioDialog::placementModeChanged, this, [this](const bool enabled) {
+        m_inputHandler.setKeymapEditing(enabled);
+        m_keymapOverlay->setEditing(enabled);
+    });
+    connect(studio, &KeymapStudioDialog::placementRequested, this, [this, studio] {
+        m_keymapOverlay->setProfile(studio->workingProfile());
+        m_keymapOverlay->syncToViewport();
+    });
+    connect(m_keymapOverlay, &KeymapOverlay::placementRequested, studio, &KeymapStudioDialog::applyPlacement);
+    connect(studio, &KeymapStudioDialog::profileSaved, this, [this](const QString& path) {
+        QString errorMessage;
+        if (!m_inputHandler.loadKeymapProfile(path, &errorMessage)) {
+            QMessageBox::warning(this, QStringLiteral("Keymap not loaded"), errorMessage);
+            return;
+        }
+        m_inputHandler.setKeymapEnabled(true);
+        m_launchConfig[QStringLiteral("keymapProfile")] = path;
+        if (m_instanceManager && !m_instanceName.isEmpty()
+            && !m_instanceManager->setConfig(m_instanceName, m_launchConfig)) {
+            QMessageBox::warning(this, QStringLiteral("Keymap saved locally"),
+                                 QStringLiteral("The keymap was saved, but could not be selected for this instance: %1")
+                                     .arg(m_instanceManager->lastError()));
+        }
+    });
+    connect(studio, &QObject::destroyed, this, [this] {
+        m_inputHandler.setKeymapEditing(false);
+        if (m_keymapOverlay) m_keymapOverlay->setEditing(false);
+    });
+    m_keymapOverlay->setProfile(*activeProfile);
+    studio->show();
+    studio->raise();
+    studio->activateWindow();
 }
 
 void MainWindow::applyDisplayProfile(const QString& profile)
@@ -432,6 +579,7 @@ void MainWindow::applyDisplayProfile(const QString& profile)
         return;
     }
     m_launchConfig = config;
+    updateDisplayProfileUi(profile);
     applyLiveDisplaySettings();
 }
 
@@ -477,7 +625,7 @@ void MainWindow::resizeForGuestDisplay(const QSize resolution)
 
 void MainWindow::beginDisplayWindowSearch()
 {
-    m_statusLabel->setText(QStringLiteral("Status: Running (locating display)"));
+    setStatusText(QStringLiteral("Running (locating display)"));
     m_windowSearchTimeout.start(30000);
     m_windowSearchTimer.start();
     searchForQemuWindow();
@@ -500,7 +648,7 @@ void MainWindow::searchForQemuWindow()
     if (!m_displayEmbed->embedWindow(qemuWindow, &errorMessage)) {
         m_windowSearchTimer.stop();
         m_windowSearchTimeout.stop();
-        m_statusLabel->setText(QStringLiteral("Status: Running (display not embedded)"));
+        setStatusText(QStringLiteral("Running (display not embedded)"), true);
         QMessageBox::warning(this,
                              QStringLiteral("Could not embed QEMU display"),
                              errorMessage);
@@ -509,12 +657,12 @@ void MainWindow::searchForQemuWindow()
 
     m_windowSearchTimer.stop();
     m_windowSearchTimeout.stop();
-    m_statusLabel->setText(QStringLiteral("Status: Running"));
+    setStatusText(QStringLiteral("Running"));
 }
 
 void MainWindow::handleVmError(const QString& message)
 {
-    m_statusLabel->setText(QStringLiteral("Status: VM error"));
+    setStatusText(QStringLiteral("VM error"), true);
     QMessageBox::critical(this, QStringLiteral("Sabi VM error"), message);
 }
 
@@ -522,7 +670,7 @@ void MainWindow::handleAdbError(const QString& message)
 {
     qWarning().noquote() << message;
     if (!m_adbBridge.isBootCompleted()) {
-        m_statusLabel->setText(QStringLiteral("Status: Android unavailable"));
+        setStatusText(QStringLiteral("Android unavailable"), true);
     }
     QMessageBox::warning(this, QStringLiteral("Sabi Android connection"), message);
 }
@@ -562,6 +710,28 @@ void MainWindow::saveScreenshot()
     if (!path.isEmpty()) {
         m_adbBridge.screenshot(path);
     }
+}
+
+void MainWindow::saveRuntimeReport()
+{
+    QString directory = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+    if (directory.isEmpty()) {
+        directory = QDir::homePath();
+    }
+    const QString path = QFileDialog::getSaveFileName(
+        this,
+        QStringLiteral("Save local runtime report"),
+        QDir(directory).filePath(QStringLiteral("sabi-runtime-report.txt")),
+        QStringLiteral("Text files (*.txt)"));
+    if (path.isEmpty()) {
+        return;
+    }
+    QString errorMessage;
+    if (!m_performanceMonitor.saveRedactedReport(path, &errorMessage)) {
+        QMessageBox::warning(this, QStringLiteral("Runtime report not saved"), errorMessage);
+        return;
+    }
+    statusBar()->showMessage(QStringLiteral("Local runtime report saved"), 6000);
 }
 
 void MainWindow::queueApkInstall(const QString& apkPath)
@@ -608,7 +778,7 @@ void MainWindow::handleCloseWaitTimeout()
         m_qemuController.kill();
     } else {
         m_closePending = false;
-        m_statusLabel->setText(QStringLiteral("Status: Shutting down"));
+        setStatusText(QStringLiteral("Shutting down"));
     }
 }
 
@@ -632,7 +802,7 @@ void MainWindow::closeEvent(QCloseEvent* event)
     }
 
     m_closePending = true;
-    m_statusLabel->setText(QStringLiteral("Status: Shutting down"));
+    setStatusText(QStringLiteral("Shutting down"));
     m_closeWaitTimer.start(35000);
     m_qemuController.stop();
 }

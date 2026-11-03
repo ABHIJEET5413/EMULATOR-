@@ -1,0 +1,13 @@
+<RCC>
+  <qresource prefix="/sabi/icons">
+    <file alias="sabi-mark.svg">icons/sabi-mark.svg</file>
+    <file alias="home.svg">icons/home.svg</file><file alias="back.svg">icons/back.svg</file><file alias="recents.svg">icons/recents.svg</file>
+    <file alias="volume-up.svg">icons/volume-up.svg</file><file alias="volume-down.svg">icons/volume-down.svg</file><file alias="power.svg">icons/power.svg</file>
+    <file alias="rotate.svg">icons/rotate.svg</file><file alias="screenshot.svg">icons/screenshot.svg</file><file alias="install-apk.svg">icons/install-apk.svg</file>
+    <file alias="fullscreen.svg">icons/fullscreen.svg</file><file alias="settings.svg">icons/settings.svg</file><file alias="instances.svg">icons/instances.svg</file>
+    <file alias="phone.svg">icons/phone.svg</file><file alias="tablet.svg">icons/tablet.svg</file><file alias="desktop.svg">icons/desktop.svg</file>
+    <file alias="status-ready.svg">icons/status-ready.svg</file><file alias="status-warning.svg">icons/status-warning.svg</file>
+    <file alias="input-diagnostics.svg">icons/input-diagnostics.svg</file>
+    <file alias="controls-studio.svg">icons/controls-studio.svg</file>
+  </qresource>
+</RCC>

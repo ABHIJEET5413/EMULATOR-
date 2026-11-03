@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Network Widgets Gui)
 
@@ -16,28 +17,53 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS Core Network Widgets Gui)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/$<CONFIG>")
 
 add_library(sabi_core STATIC
+    resources/sabi_ui.qrc
     include/launch_channel.h
     src/launch_channel.cpp
     include/instance_manager.h
     include/instance_list_window.h
+    include/instance_workspace_model.h
     include/settings_dialog.h
     src/instance_manager.cpp
     src/instance_list_window.cpp
+    src/instance_workspace_model.cpp
     src/settings_dialog.cpp
     include/adb_bridge.h
     include/display_embed.h
+    include/diagnostics_service.h
+    include/performance_monitor.h
+    include/runtime_recovery.h
+    include/guest_viewport.h
+    include/input_diagnostics_overlay.h
     include/input_handler.h
+    include/gamepad_probe.h
     include/keymap_engine.h
+    include/keymap_editor_model.h
+    include/keymap_overlay.h
     include/keymap_profile.h
+    include/keymap_studio_dialog.h
     include/main_window.h
+    include/icon_factory.h
+    include/ui_theme.h
     include/qemu_controller.h
     include/qmp_client.h
     src/display_embed.cpp
+    src/diagnostics_service.cpp
+    src/performance_monitor.cpp
+    src/runtime_recovery.cpp
+    src/guest_viewport.cpp
+    src/input_diagnostics_overlay.cpp
     src/adb_bridge.cpp
     src/input_handler.cpp
+    src/gamepad_probe.cpp
     src/keymap_engine.cpp
+    src/keymap_editor_model.cpp
+    src/keymap_overlay.cpp
     src/keymap_profile.cpp
+    src/keymap_studio_dialog.cpp
     src/main_window.cpp
+    src/icon_factory.cpp
+    src/ui_theme.cpp
     src/qemu_controller.cpp
     src/qmp_client.cpp
 )
@@ -56,7 +82,7 @@ target_link_libraries(sabi_core
 )
 
 if(WIN32)
-    target_link_libraries(sabi_core PUBLIC user32)
+    target_link_libraries(sabi_core PUBLIC user32 psapi)
 endif()
 
 add_executable(Sabi WIN32

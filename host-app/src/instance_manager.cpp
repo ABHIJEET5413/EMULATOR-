@@ -4,11 +4,13 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonDocument>
+#include <QJsonArray>
 #include <QProcess>
 #include <QRegularExpression>
 #include <QSaveFile>
 #include <QSet>
 #include <QStandardPaths>
+#include <QStorageInfo>
 #include <QTcpSocket>
 #include <QThread>
 #include <QDebug>
@@ -211,9 +213,15 @@ QList<InstanceManager::InstanceInfo> InstanceManager::listInstances() const
         const auto config = getConfig(name);
         if (config.isEmpty()) continue;
         const auto display = config.value("display").toObject();
-        result.append({name, getInstanceDir(name), QString("%1x%2").arg(display.value("width").toInt()).arg(display.value("height").toInt()),
+        QStringList labels;
+        for (const QJsonValue& value : config.value("labels").toArray()) if (value.isString()) labels.append(value.toString());
+        const QString directory = getInstanceDir(name);
+        const QStorageInfo storage(directory);
+        result.append({name, directory, QString("%1x%2").arg(display.value("width").toInt()).arg(display.value("height").toInt()),
                        isRunning(name), config.value("cpuCores").toInt(), config.value("ramMB").toInt(),
-                       QFileInfo(QDir(getInstanceDir(name)).filePath("overlay.qcow2")).size()});
+                       QFileInfo(QDir(directory).filePath("overlay.qcow2")).size(), labels,
+                       QFileInfo::exists(config.value("baseImage").toString()),
+                       storage.isValid() ? storage.bytesAvailable() : -1});
     }
     return result;
 }
@@ -449,6 +457,55 @@ bool InstanceManager::cloneInstance(const QString& sourceName, const QString& ne
     QDir(dir).removeRecursively(); return false;
 }
 
+bool InstanceManager::renameInstance(const QString& oldName, const QString& newName)
+{
+    auto registry = registryLock(); if (!registry) return false;
+    auto disk = diskLock(oldName); if (!disk) return false;
+    auto fileLock = diskFileLock(oldName, true); if (!fileLock) return false;
+    if (!isValidName(newName)) return fail("Choose a unique safe name for the stopped instance.");
+    const QString oldDirectory = getInstanceDir(oldName), newDirectory = getInstanceDir(newName);
+    const auto originalConfig = getConfig(oldName);
+    if (originalConfig.isEmpty()) return fail("The instance configuration is missing.");
+    // Windows does not reliably allow a parent-directory rename while an
+    // overlay handle is open, even when that handle permits delete sharing.
+    // The per-instance lock remains held, so releasing this final probe handle
+    // does not allow another Sabi process to start or modify the old instance.
+    fileLock.reset();
+    if (!QDir().rename(oldDirectory, newDirectory)) {
+        return fail("Windows could not rename the instance directory. The original instance was kept.");
+    }
+    auto config = originalConfig;
+    config["name"] = newName;
+    config["overlayImage"] = QDir(newDirectory).filePath("overlay.qcow2");
+    if (writeConfig(QDir(newDirectory).filePath("config.json"), config)) return true;
+    QDir().rename(newDirectory, oldDirectory);
+    writeConfig(QDir(oldDirectory).filePath("config.json"), originalConfig);
+    return fail("The instance directory was restored because its renamed configuration could not be saved.");
+}
+
+bool InstanceManager::exportInstance(const QString& name, const QString& destinationRoot)
+{
+    auto registry = registryLock(); if (!registry) return false;
+    auto disk = diskLock(name); if (!disk) return false;
+    auto fileLock = diskFileLock(name); if (!fileLock) return false;
+    const QFileInfo root(QDir::cleanPath(destinationRoot));
+    if (destinationRoot.isEmpty() || root.isSymLink() || (!root.exists() && !QDir().mkpath(root.absoluteFilePath())))
+        return fail("Choose a writable non-link folder for the export.");
+    const QString target = QDir(root.absoluteFilePath()).filePath(name);
+    if (QFileInfo::exists(target)) return fail("The export folder already contains an instance with this name. Choose an empty destination.");
+    if (!QDir().mkpath(target)) return fail("Could not create the instance export folder.");
+    const QString source = getInstanceDir(name);
+    const bool copied = QFile::copy(QDir(source).filePath("config.json"), QDir(target).filePath("config.json"))
+        && QFile::copy(QDir(source).filePath("overlay.qcow2"), QDir(target).filePath("overlay.qcow2"));
+    if (copied) {
+        QFile notice(QDir(target).filePath("README-SABI-EXPORT.txt"));
+        if (notice.open(QIODevice::WriteOnly | QIODevice::Text)) notice.write("Sabi stopped-instance export. Preserve this folder with its referenced base image. Import is intentionally not automatic.\n");
+        return true;
+    }
+    QDir(target).removeRecursively();
+    return fail("The stopped instance could not be exported. Check destination free space and permissions.");
+}
+
 bool InstanceManager::deleteInstance(const QString& name)
 {
     auto lock = registryLock(); if (!lock) return false;
@@ -503,6 +560,38 @@ bool InstanceManager::setConfig(const QString& name, const QJsonObject& input)
         return fail("Stop the instance before changing its ports.");
     if (!validate(name, config, !running)) return false;
     return writeConfig(QDir(getInstanceDir(name)).filePath("config.json"), config);
+}
+
+bool InstanceManager::setLabels(const QString& name, const QStringList& labels)
+{
+    if (labels.size() > 8) return fail("Use at most eight short labels per instance.");
+    QJsonArray values;
+    for (const QString& label : labels) {
+        const QString value = label.trimmed();
+        if (value.isEmpty() || value.size() > 32 || value.contains('\n') || value.contains('\r'))
+            return fail("Labels must be 1-32 characters and cannot contain line breaks.");
+        if (!values.contains(value)) values.append(value);
+    }
+    auto config = getConfig(name); if (config.isEmpty()) return fail("The instance configuration is missing.");
+    config["labels"] = values;
+    return setConfig(name, config);
+}
+
+bool InstanceManager::applyResourceProfile(const QString& name, const QString& profile)
+{
+    auto config = getConfig(name); if (config.isEmpty()) return fail("The instance configuration is missing.");
+    if (profile == "low") {
+        config["cpuCores"] = 1;
+        config["ramMB"] = 1024;
+    } else if (profile == "balanced") {
+        config["cpuCores"] = qMin(2, maximumCpuCores());
+        config["ramMB"] = qMin(2048, maximumRamMB());
+        if (config.value("ramMB").toInt() < 1024) config["ramMB"] = 1024;
+    } else {
+        return fail("Choose the Balanced or Low resource profile.");
+    }
+    config["resourceProfile"] = profile;
+    return setConfig(name, config);
 }
 
 bool InstanceManager::acquireInstance(const QString& name)

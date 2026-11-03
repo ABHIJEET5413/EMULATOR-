@@ -52,6 +52,7 @@ DisplayEmbed::DisplayEmbed(QWidget* parent)
     setAttribute(Qt::WA_OpaquePaintEvent);
     setStyleSheet(QStringLiteral("background: black;"));
     setMinimumSize(240, 320);
+    updateViewport();
 }
 
 void DisplayEmbed::setGuestResolution(const QSize resolution)
@@ -62,23 +63,18 @@ void DisplayEmbed::setGuestResolution(const QSize resolution)
     }
 
     m_guestResolution = resolution;
+    updateViewport();
     resizeEmbeddedWindow();
 }
 
 QRect DisplayEmbed::guestContentRect(const QSize availableSize, const QSize guestResolution)
 {
-    if (availableSize.width() < 1 || availableSize.height() < 1
-        || guestResolution.width() < 1 || guestResolution.height() < 1) {
-        return {};
-    }
+    return GuestViewport::calculateLogicalContentRect(availableSize, guestResolution);
+}
 
-    const qreal scale = qMin(static_cast<qreal>(availableSize.width()) / guestResolution.width(),
-                             static_cast<qreal>(availableSize.height()) / guestResolution.height());
-    const QSize contentSize(qMax(1, qRound(guestResolution.width() * scale)),
-                            qMax(1, qRound(guestResolution.height() * scale)));
-    return QRect((availableSize.width() - contentSize.width()) / 2,
-                 (availableSize.height() - contentSize.height()) / 2,
-                 contentSize.width(), contentSize.height());
+GuestViewport DisplayEmbed::viewport() const
+{
+    return m_viewport;
 }
 
 quintptr DisplayEmbed::findWindowForProcess(const qint64 processId)
@@ -140,12 +136,13 @@ bool DisplayEmbed::embedWindow(const quintptr windowHandle, QString* errorMessag
         return false;
     }
 
+    const QRect initialContent = m_viewport.physicalContentRect();
     if (!SetWindowPos(window,
                       nullptr,
-                      0,
-                      0,
-                      qMax(1, qRound(width() * devicePixelRatioF())),
-                      qMax(1, qRound(height() * devicePixelRatioF())),
+                      initialContent.x(),
+                      initialContent.y(),
+                      qMax(1, initialContent.width()),
+                      qMax(1, initialContent.height()),
                       SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED | SWP_SHOWWINDOW)) {
         SetParent(window, originalParent);
         SetWindowLongPtrW(window, GWL_STYLE, originalStyle);
@@ -225,7 +222,14 @@ void DisplayEmbed::clearEmbeddedWindow()
 void DisplayEmbed::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event);
+    updateViewport();
     resizeEmbeddedWindow();
+}
+
+void DisplayEmbed::updateViewport()
+{
+    m_viewport = GuestViewport(size(), m_guestResolution, devicePixelRatioF());
+    emit viewportChanged();
 }
 
 void DisplayEmbed::resizeEmbeddedWindow()
@@ -233,15 +237,14 @@ void DisplayEmbed::resizeEmbeddedWindow()
 #ifdef Q_OS_WIN
     const HWND window = reinterpret_cast<HWND>(m_embeddedWindow);
     if (window && IsWindow(window)) {
-        const qreal scale = devicePixelRatioF();
-        const QRect content = guestContentRect(size(), m_guestResolution);
+        const QRect content = m_viewport.physicalContentRect();
         // Win32 child coordinates are physical pixels. Keeping this exact
         // content rectangle aligned with the SDL child prevents black-bar
         // clicks from being interpreted as guest coordinates.
-        const int pixelX = qRound(content.x() * scale);
-        const int pixelY = qRound(content.y() * scale);
-        const int pixelWidth = qMax(1, qRound(content.width() * scale));
-        const int pixelHeight = qMax(1, qRound(content.height() * scale));
+        const int pixelX = content.x();
+        const int pixelY = content.y();
+        const int pixelWidth = qMax(1, content.width());
+        const int pixelHeight = qMax(1, content.height());
         if (!MoveWindow(window, pixelX, pixelY, pixelWidth, pixelHeight, TRUE)) {
             qWarning() << "Could not resize the embedded QEMU display.";
         }

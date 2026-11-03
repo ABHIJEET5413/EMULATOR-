@@ -6,6 +6,7 @@
 #include <QLockFile>
 #include <QObject>
 #include <QString>
+#include <QStringList>
 
 #include <memory>
 
@@ -20,6 +21,9 @@ public:
         bool isRunning{false};
         int cpuCores{1}, ramMB{1024};
         qint64 overlaySize{0};
+        QStringList labels;
+        bool backingImageAvailable{false};
+        qint64 availableBytes{-1};
     };
     /** Construct with explicit resource and writable instance roots. */
     explicit InstanceManager(const QString& resourceRoot, const QString& instancesRoot,
@@ -43,6 +47,10 @@ public:
     bool createInstance(const QString& name, const QJsonObject& config = {});
     /** Copy a stopped instance's disk and allocate independent ports. */
     bool cloneInstance(const QString& sourceName, const QString& newName);
+    /** Rename a stopped instance directory and its configuration atomically where possible. */
+    bool renameInstance(const QString& oldName, const QString& newName);
+    /** Copy a stopped instance's config and qcow2 overlay to an empty user-selected folder. */
+    bool exportInstance(const QString& name, const QString& destinationRoot);
     /** Remove a stopped instance. UI callers must obtain confirmation. */
     bool deleteInstance(const QString& name);
     /** Replace a stopped disk with a new overlay, preserving settings. */
@@ -50,6 +58,10 @@ public:
     /** Read or atomically save a validated configuration. */
     QJsonObject getConfig(const QString& name) const;
     bool setConfig(const QString& name, const QJsonObject& config);
+    /** Save short display labels that do not affect QEMU launch behavior. */
+    bool setLabels(const QString& name, const QStringList& labels);
+    /** Apply an enforceable next-start CPU/RAM resource profile. */
+    bool applyResourceProfile(const QString& name, const QString& profile);
     /** Return the validated absolute instance directory or an empty string. */
     QString getInstanceDir(const QString& name) const;
     /** Check a portable filename and reject duplicates. */

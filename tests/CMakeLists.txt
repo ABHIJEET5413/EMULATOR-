@@ -10,6 +10,7 @@ set_tests_properties(launch_channel PROPERTIES TIMEOUT 45)
 if(WIN32)
     add_test(NAME installer_preflight COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${CMAKE_CURRENT_SOURCE_DIR}/test_installer.ps1")
     add_test(NAME whpx_script COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${CMAKE_CURRENT_SOURCE_DIR}/test_whpx.ps1")
+    add_test(NAME release_readiness COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${CMAKE_CURRENT_SOURCE_DIR}/test_release_readiness.ps1")
     set_tests_properties(whpx_script PROPERTIES TIMEOUT 90)
 endif()
 
@@ -36,6 +37,13 @@ target_link_libraries(test_display_input
 
 add_test(NAME display_input COMMAND test_display_input)
 set_tests_properties(display_input PROPERTIES
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
+)
+
+add_executable(test_viewport_input test_viewport_input.cpp)
+target_link_libraries(test_viewport_input PRIVATE sabi_core Qt6::Core)
+add_test(NAME viewport_input COMMAND test_viewport_input)
+set_tests_properties(viewport_input PROPERTIES
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
 )
 
@@ -94,6 +102,48 @@ set_tests_properties(phase5_ui PROPERTIES
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
     TIMEOUT 90
+)
+
+add_executable(test_phase7_ui test_phase7_ui.cpp)
+target_link_libraries(test_phase7_ui PRIVATE sabi_core Qt6::Core Qt6::Gui Qt6::Widgets)
+add_test(NAME phase7_ui COMMAND test_phase7_ui)
+set_tests_properties(phase7_ui PROPERTIES
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    TIMEOUT 45
+)
+
+add_executable(test_control_center test_control_center.cpp)
+target_link_libraries(test_control_center PRIVATE sabi_core Qt6::Core Qt6::Gui Qt6::Widgets)
+add_test(NAME control_center COMMAND test_control_center)
+set_tests_properties(control_center PROPERTIES
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    TIMEOUT 45
+)
+
+add_executable(test_keymap_studio test_keymap_studio.cpp)
+target_link_libraries(test_keymap_studio PRIVATE sabi_core Qt6::Core)
+add_test(NAME keymap_studio COMMAND test_keymap_studio)
+set_tests_properties(keymap_studio PROPERTIES
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
+    TIMEOUT 45
+)
+
+add_executable(test_instance_workspace test_instance_workspace.cpp)
+target_link_libraries(test_instance_workspace PRIVATE sabi_core Qt6::Core)
+add_test(NAME instance_workspace COMMAND test_instance_workspace)
+set_tests_properties(instance_workspace PROPERTIES
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
+    TIMEOUT 45
+)
+
+add_executable(test_runtime_recovery test_runtime_recovery.cpp)
+target_link_libraries(test_runtime_recovery PRIVATE sabi_core Qt6::Core)
+add_test(NAME runtime_recovery COMMAND test_runtime_recovery)
+set_tests_properties(runtime_recovery PROPERTIES
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/.."
+    TIMEOUT 45
 )
 
 if(WIN32)
