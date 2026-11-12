@@ -13,7 +13,11 @@ DefaultGroupName=Sabi
 OutputDir=Output
 OutputBaseFilename=SabiSetup
 Compression=lzma2/ultra64
-SolidCompression=yes
+; The Android base image is nearly 4 GiB. Keeping it in one solid LZMA2 block
+; produced an EXE whose Setup loader reported a corrupt payload before the
+; wizard could start. Non-solid LZMA2 keeps this a single offline EXE while
+; giving the loader independently verifiable file streams.
+SolidCompression=no
 DiskSpanning=no
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
