@@ -77,12 +77,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File installer/scripts/build-inst
 ```
 
 Output: **`installer/Output/SabiSetup.exe`**, followed by its SHA-256.
-No external `.bin` files. The installer uses non-solid `zip/9` compression for
-the nearly-4-GiB Android base image. This avoids the Inno Setup 6 LZMA2
-extraction failure seen with the original Version 3 RC1 package. The output EXE
-is therefore larger, but it remains a single offline installer. Do not install
-or copy it until ISCC reports success and a local Setup-loader check reaches the
-wizard. Interrupted output is incomplete and must be rebuilt.
+No external `.bin` files. The installer uses non-solid `lzma2/max` compression
+with an explicit 8 MiB dictionary and one block thread for the nearly-4-GiB
+Android base image. This avoids the high-memory LZMA2 configuration behind the
+original Version 3 RC1 extraction failure while keeping the single EXE below
+GitHub's 2 GiB asset limit. Do not install or copy it until ISCC reports
+success and a local Setup-loader check reaches the wizard. Interrupted output
+is incomplete and must be rebuilt.
 Use `-IsccPath "C:/path/to/ISCC.exe"` for another compiler location.
 
 Direct compiler equivalent after staging:

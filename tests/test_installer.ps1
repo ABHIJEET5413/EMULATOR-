@@ -11,7 +11,9 @@ foreach($file in Get-ChildItem -LiteralPath $installer -Filter '*.ps1' -File -Re
 }
 $script=Get-Content (Join-Path $installer 'sabi.iss') -Raw
 Check ($script -match 'DiskSpanning=no') 'single executable configured'
-Check ($script -match 'Compression=zip/9') 'large base image avoids the failing LZMA2 extraction path'
+Check ($script -match 'Compression=lzma2/max') 'large base image uses the compatible LZMA2 profile'
+Check ($script -match 'LZMADictionarySize=8192') 'installer fixes the LZMA2 dictionary at 8 MiB'
+Check ($script -match 'LZMANumBlockThreads=1') 'installer uses one deterministic LZMA2 block stream'
 Check ($script -match 'SolidCompression=no') 'installer stores files as independently extractable streams'
 Check ($script -match 'ExecAsOriginalUser') 'original-user initialization configured'
 Check ($script -notmatch '(?m)^\[UninstallDelete\]') 'uninstall does not erase kept data unconditionally'

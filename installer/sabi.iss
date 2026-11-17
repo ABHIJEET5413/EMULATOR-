@@ -12,11 +12,12 @@ DefaultDirName={autopf}\Sabi
 DefaultGroupName=Sabi
 OutputDir=Output
 OutputBaseFilename=SabiSetup
-; The Android base image is nearly 4 GiB. Inno Setup 6's LZMA2 archive path
-; reports source corruption for this payload on the tested Windows host. ZIP
-; compression keeps one offline EXE, avoids that extractor defect, and does
-; not expand already-compressed files.
-Compression=zip/9
+; The Android base image is nearly 4 GiB. Keep compression non-solid and use
+; the documented 8 MiB LZMA2 dictionary rather than the high-memory ultra64
+; setting that made the earlier RC1 package fail at Setup startup.
+Compression=lzma2/max
+LZMADictionarySize=8192
+LZMANumBlockThreads=1
 SolidCompression=no
 DiskSpanning=no
 ArchitecturesAllowed=x64compatible
