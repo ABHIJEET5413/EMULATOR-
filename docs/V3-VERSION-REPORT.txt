@@ -1,0 +1,319 @@
+SABI VERSION 3 — COMPLETE CHANGE AND TEST REPORT
+================================================
+
+Release: Sabi 3.0.0 RC1
+Release page:
+https://github.com/ABHIJEET5413/EMULATOR-/releases/tag/v3.0.0-rc1
+
+Status: PRE-RELEASE / NOT YET STABLE
+
+Version 3 modernizes Sabi's Windows interface, embedded Android display,
+input reliability, controls, instance management, diagnostics, and release
+evidence. It must still pass real clean-PC and hardware acceptance checks
+before being called a stable public release.
+
+
+1. FINAL LOOK AND INTERFACE
+---------------------------
+
+- New unified dark Sabi desktop design system.
+- Original scalable SVG icons for toolbar actions.
+- Compact top context bar with Sabi identity, active instance name, and
+  Android status.
+- Organized right-side control rail.
+- Native Windows title bar and caption buttons are retained for reliable
+  minimize, maximize, close, DPI behavior, and accessibility.
+- Icon tooltips and keyboard-focus states were added.
+- The Android viewport remains visually central; controls do not permanently
+  cover it.
+- The host UI is designed for 100%, 125%, 150%, and 200% Windows DPI scaling.
+
+The Android launcher/wallpaper itself remains supplied by Bliss OS. Version 3
+improves the Sabi Windows application around the Android guest.
+
+
+2. DISPLAY QUALITY AND RESOLUTION
+---------------------------------
+
+- Persistent per-instance Phone, Tablet, Desktop, Fullscreen, and Custom
+  resolution/DPI profiles.
+- The chosen profile is restored after the application is closed and reopened.
+- Android can receive live wm size and wm density updates after boot.
+- QEMU uses the chosen raster dimensions on the next VM start.
+- Android is rendered aspect-correctly rather than stretched.
+- Deliberate black letterbox margins are used when aspect ratios differ.
+- GuestViewport is the single geometry authority for Qt layout, QEMU placement,
+  DPI conversion, and input mapping.
+
+
+3. MOUSE, TOUCHPAD, CURSOR, AND KEYBOARD
+-----------------------------------------
+
+Problems addressed:
+
+- Cursor drift/misalignment in the embedded display.
+- Cursor getting trapped at the edge of Android.
+- Android accidentally receiving clicks from black margins or host controls.
+- Duplicate SDL/QMP clicks.
+- Stuck held keys or touches after focus/VM changes.
+
+Solutions added:
+
+- DPI-aware physical-pixel coordinate mapping.
+- Correct conversion between Qt display geometry, QEMU SDL child geometry,
+  Windows physical pixels, and QMP absolute USB-tablet coordinates.
+- Mouse movement is never consumed, letting a mouse or touchpad enter and
+  leave the Android viewport normally.
+- Only successful click/touch transitions are consumed, preventing duplicate
+  guest touches.
+- Letterbox margins, menus, dialogs, tool rail, and title-bar controls are
+  rejected as guest touch targets.
+- Drags that begin in Android receive their matching release even after moving
+  outside the guest rectangle.
+- Focus loss, VM shutdown, and input-handler destruction release held input.
+- Keyboard events remain isolated to the focused guest instance.
+- Ctrl+Shift+I toggles an optional local input diagnostics overlay. It is off
+  by default and does not intercept input.
+
+
+4. PROFESSIONAL CONTROL CENTER
+------------------------------
+
+The former dense settings dialog is now grouped into per-instance pages:
+
+- General
+- Display
+- Performance
+- Controls
+- Storage
+- Network / ADB
+- Advanced
+- Diagnostics
+
+Key improvements:
+
+- Phone, Tablet, Desktop, Fullscreen, and Custom display options.
+- CPU/RAM controls represent real next-start QEMU limits.
+- QMP and ADB ports cannot be the same.
+- Port controls cannot be edited while a VM is running.
+- Restore defaults preserves the instance identity, disks, and ports.
+- Diagnostics can open logs and save user-selected redacted reports.
+- No fake FPS booster, eco mode, cloud feature, or other unverified function
+  is presented as working.
+
+
+5. CONTROLS STUDIO AND KEYMAPPING
+---------------------------------
+
+Version 3 adds a visual editor for the existing JSON keymap engine.
+
+Supported mapping actions:
+
+- Tap
+- Hold
+- Swipe
+- Repeat tap
+- Passthrough keyboard action
+
+Features:
+
+- Add, edit, and remove bindings.
+- Duplicate-key conflict detection.
+- Undo/redo.
+- Import/export local JSON profiles.
+- Explicit save to a user-selected location.
+- Per-instance selected keymap persistence.
+- Placement mode over the Android viewport.
+- Correct scaling from keymap reference resolution to guest resolution.
+- Overlay markers stay inside Android content and outside letterbox margins.
+
+Safety:
+
+- Entering placement mode releases normal input first.
+- Placement clicks are not sent accidentally to Android.
+- No macros, scripts, remote automation, or synchronized input were added.
+
+
+6. GAMEPAD STATUS
+-----------------
+
+- Connected XInput slots can be detected.
+- Android gamepad mapping is NOT implemented.
+- Raw Input/HID compatibility is NOT claimed.
+- Rumble is NOT supported.
+- No gamepad input is sent to Android by the detection feature.
+
+This is intentionally documented honestly rather than being advertised as a
+working feature.
+
+
+7. MULTI-INSTANCE WORKSPACE
+---------------------------
+
+Added workspace features:
+
+- Search by instance name or labels.
+- Filter All, Running, and Stopped instances.
+- Sort by name, state, or overlay disk size.
+- Create, start, stop, pause/resume, clone, rename, export, reset, and delete.
+- Add up to eight local labels per instance.
+- Arrange owned windows as a grid or cascade.
+- Bulk-start stopped instances.
+- Stop windows owned by the current workspace process.
+- Export config, overlay, and README as a portable backup.
+- Show instance health, overlay size, base-image availability, CPU/RAM,
+  resolution, and low-host-storage warnings.
+
+Honest resource profiles:
+
+- Balanced: up to 2 CPU cores and 2048 MB RAM, subject to host limits.
+- Low Resource: 1 CPU core and 1024 MB RAM.
+
+These become QEMU next-start limits. They are not claimed to be an FPS limiter,
+priority booster, audio policy, or measured eco mode.
+
+
+8. SAFETY, SAFE MODE, AND RECOVERY
+-----------------------------------
+
+- Sabi records a local atomic session marker after QEMU/QMP has started.
+- A previous QEMU process that did not stop cleanly is detected next time.
+- Sabi warns the user without resetting, deleting, repairing, or changing the
+  overlay automatically.
+
+Safe mode command:
+
+  Sabi.exe --safe-mode
+
+Safe mode opens the instance workspace only. It does not auto-start Android,
+forward another launch request, or alter disks/settings.
+
+
+9. LOCAL DIAGNOSTICS AND PERFORMANCE EVIDENCE
+----------------------------------------------
+
+The Save runtime report action can record, locally and only when requested:
+
+- Launch start time
+- QMP-ready time
+- Android-ready time
+- QEMU exit time
+- QEMU peak working-set memory
+- Latest sampled QEMU CPU use
+- Overlay size at process start and exit
+- QEMU exit code
+
+Privacy contract:
+
+- No telemetry
+- No cloud account
+- No local web server
+- No automatic diagnostic upload
+- No ADB keys
+- No APK contents
+- No guest files
+- No full user paths
+- No automatic log-content inclusion
+
+
+10. INSTALLER AND PACKAGE SIZE
+------------------------------
+
+The Version 3 RC1 installer includes:
+
+- Sabi application
+- Dynamically linked Qt runtime
+- QEMU runtime and required files
+- ADB runtime
+- Bliss OS qcow2 base image
+- Microsoft Visual C++ runtime
+- Default configuration and keymaps
+- Licenses, source notices, and source-offer materials
+
+Installer size comparison:
+
+  Version 2:     1,810,483,824 bytes
+  Version 3 RC1:   554,161,156 bytes (about 528.5 MiB)
+
+Version 3 is about 69% smaller than the Version 2 installer.
+
+Important: Android was not removed. The uncompressed staged bundle still has:
+
+  Bliss base image: about 3.85 GiB
+  QEMU runtime:     about 514 MiB
+  Qt application:   about 35 MiB
+  ADB runtime:      about 9 MiB
+  VC++ runtime:     about 18 MiB
+
+The smaller installer is mainly the result of LZMA2 compression of the clean
+qcow2 image's highly compressible unused/zero-filled space. The bundle manifest
+verified 3,465 staged files and the expected base-image hash before compilation.
+
+
+11. AUTOMATED TESTING COMPLETED
+-------------------------------
+
+On 3 November 2026, the Release build and full automated test run completed:
+
+  17 / 17 CTest tests passed
+  0 tests failed
+
+Automated coverage included:
+
+1. Launch-channel forwarding and validation.
+2. Installer static preflight.
+3. WHPX script behavior.
+4. Release-readiness static audit.
+5. VM configuration loading.
+6. Display-coordinate scaling and input translation.
+7. Viewport letterboxing, 125% DPI geometry, margin rejection, and edge mapping.
+8. Keymap schema, actions, persistence, and scaling.
+9. ADB behavior using a fake ADB executable.
+10. Instance-manager lifecycle and disk safeguards.
+11. Settings/launcher UI behavior.
+12. Version 3 design-system UI behavior.
+13. Control-center validation and redacted report creation.
+14. Controls Studio edits, undo/redo, conflicts, and parser round-trip.
+15. Instance workspace filtering, sorting, and health summaries.
+16. Runtime recovery and report redaction.
+17. Native keyboard isolation across two foreign/native guest windows.
+
+The complete offline installer bundle was rebuilt successfully and uploaded to
+the Version 3 RC1 GitHub pre-release with its SHA-256 checksum.
+
+
+12. TESTING STILL PENDING
+-------------------------
+
+The following must be completed before Version 3 can be declared stable:
+
+- Clean Windows 10/11 PC offline installation.
+- First installed-package Android boot to home screen.
+- WHPX disabled, enable-needed, restart-needed, and ready states.
+- BIOS/UEFI virtualization requirement on another machine.
+- ADB authorization, APK install, file push, screenshot, and navigation.
+- Version 2 to Version 3 upgrade with retained apps/data/overlay.
+- Uninstall while retaining Android data.
+- Uninstall while deleting disposable Android data.
+- Mouse/touchpad use at 100%, 125%, 150%, and 200% DPI.
+- Keyboard-only accessibility review.
+- Resize, fullscreen, narrow window, and multi-monitor behavior.
+- Two real Android instances with independent input and ADB.
+- Safe-mode recovery on a disposable instance.
+- Actual cold/warm boot, RAM, CPU, storage growth, shutdown, and two-instance
+  performance measurements.
+- Complete distribution source/notices inventory review.
+- Windows SmartScreen behavior; the installer is currently unsigned.
+
+
+13. FINAL STATUS
+----------------
+
+Version 3 RC1 is a major improvement in professional appearance, display
+quality, mouse/touchpad reliability, keymapping, settings safety, instance
+management, recovery, diagnostics, and engineering evidence.
+
+It is correctly marked as a PRE-RELEASE. Automated tests pass, but it is not
+yet a fully stable release until the real clean-PC, installer, WHPX, Android,
+DPI/input, accessibility, multi-instance, and performance acceptance checks
+are completed.
