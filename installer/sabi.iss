@@ -12,11 +12,11 @@ DefaultDirName={autopf}\Sabi
 DefaultGroupName=Sabi
 OutputDir=Output
 OutputBaseFilename=SabiSetup
-Compression=lzma2/ultra64
-; The Android base image is nearly 4 GiB. Keeping it in one solid LZMA2 block
-; produced an EXE whose Setup loader reported a corrupt payload before the
-; wizard could start. Non-solid LZMA2 keeps this a single offline EXE while
-; giving the loader independently verifiable file streams.
+; The Android base image is nearly 4 GiB. Inno Setup 6's LZMA2 archive path
+; reports source corruption for this payload on the tested Windows host. ZIP
+; compression keeps one offline EXE, avoids that extractor defect, and does
+; not expand already-compressed files.
+Compression=zip/9
 SolidCompression=no
 DiskSpanning=no
 ArchitecturesAllowed=x64compatible

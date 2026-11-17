@@ -11,7 +11,8 @@ foreach($file in Get-ChildItem -LiteralPath $installer -Filter '*.ps1' -File -Re
 }
 $script=Get-Content (Join-Path $installer 'sabi.iss') -Raw
 Check ($script -match 'DiskSpanning=no') 'single executable configured'
-Check ($script -match 'SolidCompression=no') 'large base image avoids a failing solid archive'
+Check ($script -match 'Compression=zip/9') 'large base image avoids the failing LZMA2 extraction path'
+Check ($script -match 'SolidCompression=no') 'installer stores files as independently extractable streams'
 Check ($script -match 'ExecAsOriginalUser') 'original-user initialization configured'
 Check ($script -notmatch '(?m)^\[UninstallDelete\]') 'uninstall does not erase kept data unconditionally'
 Check ($script -match '""%1""') 'APK argument quoted'
